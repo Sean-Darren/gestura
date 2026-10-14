@@ -1,12 +1,13 @@
 import { z } from 'zod'
 
-export const IPC_CHANNELS = ['app:ready', 'app:status'] as const
+export const IPC_CHANNELS = ['app:ready', 'app:status', 'system:pause-state'] as const
 
 export const IPC_TRANSPORT_CHANNEL = 'gestura:ipc'
 
 export const IPC_PAYLOAD_SCHEMAS = {
   'app:ready': z.object({}).strict(),
-  'app:status': z.object({ status: z.literal('ready') }).strict()
+  'app:status': z.object({ status: z.literal('ready') }).strict(),
+  'system:pause-state': z.object({ paused: z.boolean() }).strict()
 } as const
 
 export const IpcEnvelopeSchema = z

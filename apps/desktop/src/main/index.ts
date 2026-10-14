@@ -1,16 +1,31 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, session } from 'electron'
 import { join } from 'node:path'
 import { createIpcEnvelope, parseIpcEnvelope } from '@gestura/core'
+import { loadAppConfig } from './config'
+import { installNetworkPolicy } from './network'
+import { createBlockedRequestLogger } from './network/local-log'
+import { PauseController, pauseAccelerator } from './pause'
 
 const trustedWebContents = new Set<number>()
 let controlWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
-
+const pause = new PauseController()
 type RendererPage = 'control' | 'overlay' | 'vision'
 
+function localRendererOrigin(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    const isLoopback = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname)
+    return url.protocol === 'http:' && isLoopback ? url.origin : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function rendererUrl(page: RendererPage): { url?: string; filePath?: string } {
-  const devServerUrl = process.env.ELECTRON_RENDERER_URL
-  if (devServerUrl) return { url: `${devServerUrl.replace(/\/$/, '')}/${page}/index.html` }
+  const devOrigin = localRendererOrigin(process.env.ELECTRON_RENDERER_URL)
+  if (devOrigin) return { url: `${devOrigin}/${page}/index.html` }
   return { filePath: join(__dirname, '../renderer', page, 'index.html') }
 }
 
@@ -38,9 +53,14 @@ function createWindow(
   const contentsId = window.webContents.id
   trustedWebContents.add(contentsId)
   window.webContents.once('destroyed', () => trustedWebContents.delete(contentsId))
+  window.webContents.once('did-finish-load', () => {
+    window.webContents.send(
+      'gestura:ipc',
+      createIpcEnvelope('system:pause-state', { paused: pause.paused })
+    )
+  })
   window.webContents.on('will-navigate', (event, targetUrl) => {
-    const devServerUrl = process.env.ELECTRON_RENDERER_URL
-    const allowedDevOrigin = devServerUrl ? new URL(devServerUrl).origin : undefined
+    const allowedDevOrigin = localRendererOrigin(process.env.ELECTRON_RENDERER_URL)
     let isAllowedDevNavigation = false
     try {
       isAllowedDevNavigation =
@@ -54,6 +74,9 @@ function createWindow(
   loadRenderer(window, page)
   return window
 }
+
+const configuredLocalOrigin = localRendererOrigin(process.env.ELECTRON_RENDERER_URL)
+const configuredLocalOrigins = configuredLocalOrigin ? [configuredLocalOrigin] : []
 
 function createControlWindow(): BrowserWindow {
   controlWindow = createWindow('control', {
@@ -119,7 +142,45 @@ function registerIpc(): void {
   })
 }
 
+function installNetworkPolicies(config: ReturnType<typeof loadAppConfig>): void {
+  const blockedRequestLogger = createBlockedRequestLogger(
+    config.logging.enabled,
+    join(app.getPath('userData'), 'logs')
+  )
+  const installedSessions = new WeakSet<object>()
+  const apply = (target: Electron.Session): void => {
+    if (installedSessions.has(target)) return
+    installedSessions.add(target)
+    installNetworkPolicy(target, {
+      allowlist: config.network.allowlist,
+      localOrigins: configuredLocalOrigins,
+      onBlocked: (request) => {
+        void blockedRequestLogger.log(request)
+      }
+    })
+  }
+
+  app.on('session-created', apply)
+  apply(session.defaultSession)
+}
+
+function registerPauseHotkey(): void {
+  const accelerator = pauseAccelerator(process.platform)
+  if (!globalShortcut.register(accelerator, () => pause.toggle()))
+    throw new Error(`Could not register the required global pause hotkey: ${accelerator}`)
+
+  pause.subscribe((paused) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed())
+        window.webContents.send('gestura:ipc', createIpcEnvelope('system:pause-state', { paused }))
+    }
+  })
+}
+
 app.whenReady().then(() => {
+  const config = loadAppConfig(join(app.getPath('userData'), 'config.json'))
+  installNetworkPolicies(config)
+  registerPauseHotkey()
   registerIpc()
   createWindows()
   app.on('activate', () => {
@@ -132,6 +193,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll()
   trustedWebContents.clear()
   controlWindow = null
   overlayWindow = null

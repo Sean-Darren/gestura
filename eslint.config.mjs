@@ -28,5 +28,83 @@ export default defineConfig(
       ...eslintPluginReactRefresh.configs.vite.rules
     }
   },
+  {
+    files: [
+      'packages/pointer/**/*.{ts,tsx}',
+      'packages/gestures/**/*.{ts,tsx}',
+      'packages/intent/**/*.{ts,tsx}',
+      'apps/desktop/src/utility/speech/**/*.{ts,tsx}'
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'http', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node:http', message: 'Network access is forbidden in this boundary.' },
+            { name: 'https', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node:https', message: 'Network access is forbidden in this boundary.' },
+            { name: 'net', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node:net', message: 'Network access is forbidden in this boundary.' },
+            { name: 'dgram', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node:dgram', message: 'Network access is forbidden in this boundary.' },
+            { name: 'undici', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node:undici', message: 'Network access is forbidden in this boundary.' },
+            { name: 'axios', message: 'Network access is forbidden in this boundary.' },
+            { name: 'node-fetch', message: 'Network access is forbidden in this boundary.' },
+            {
+              name: 'electron',
+              importNames: ['net'],
+              message: 'Electron net is forbidden in this boundary.'
+            }
+          ]
+        }
+      ],
+      'no-restricted-modules': [
+        'error',
+        {
+          paths: [
+            'http',
+            'node:http',
+            'https',
+            'node:https',
+            'net',
+            'node:net',
+            'dgram',
+            'node:dgram',
+            'undici',
+            'node:undici',
+            'axios',
+            'node-fetch',
+            'electron'
+          ]
+        }
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'fetch', message: 'Network access is forbidden in this boundary.' },
+        { name: 'XMLHttpRequest', message: 'Network access is forbidden in this boundary.' },
+        { name: 'WebSocket', message: 'Network access is forbidden in this boundary.' }
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'globalThis',
+          property: 'fetch',
+          message: 'Network access is forbidden in this boundary.'
+        },
+        {
+          object: 'globalThis',
+          property: 'XMLHttpRequest',
+          message: 'Network access is forbidden in this boundary.'
+        },
+        {
+          object: 'globalThis',
+          property: 'WebSocket',
+          message: 'Network access is forbidden in this boundary.'
+        }
+      ]
+    }
+  },
   eslintConfigPrettier
 )

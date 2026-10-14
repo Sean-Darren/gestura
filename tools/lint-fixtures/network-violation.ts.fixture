@@ -1,0 +1,11 @@
+import axios from 'axios'
+import { net } from 'electron'
+import http from 'node:http'
+
+void axios.get('https://example.com')
+void fetch('https://example.com')
+void XMLHttpRequest
+void WebSocket
+void globalThis.fetch
+void net
+void http

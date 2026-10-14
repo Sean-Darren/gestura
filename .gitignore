@@ -12,6 +12,6 @@ coverage
 models/*
 !models/.gitkeep
 .codex
-docs
 .env
 .env.local
+docs
