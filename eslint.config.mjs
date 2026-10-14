@@ -106,5 +106,9 @@ export default defineConfig(
       ]
     }
   },
-  eslintConfigPrettier
+  eslintConfigPrettier,
+  {
+    files: ['native/gestura-native/**/*.mjs'],
+    rules: { '@typescript-eslint/explicit-function-return-type': 'off' }
+  }
 )

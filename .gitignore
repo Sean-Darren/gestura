@@ -1,4 +1,6 @@
 node_modules
+native/gestura-native/target/
+native/gestura-native/prebuilds/*.node
 dist
 out
 .DS_Store

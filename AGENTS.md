@@ -115,6 +115,7 @@ docs/                     PROGRESS.md, open-questions.md, decisions/ (ADRs)
 | Fetch models                                       | `pnpm models:fetch`                         |
 | Build native addon (current platform)              | `pnpm native:build`                         |
 | Native demo / UI element probe                     | `pnpm native:demo` / `pnpm native:ui-probe` |
+| Native moveTo latency (1,000 calls)                 | `pnpm native:bench`                         |
 | Run app (dev)                                      | `pnpm dev`                                  |
 | Lint + typecheck + test (run before saying "done") | `pnpm verify`                               |
 | Unit tests only                                    | `pnpm test`                                 |

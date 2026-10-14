@@ -8,6 +8,14 @@ const appRoot = fileURLToPath(new URL('.', import.meta.url))
 export default defineConfig({
   main: {
     build: {
+      rollupOptions: {
+        input: {
+          index: resolve(appRoot, 'src/main/index.ts'),
+          'native-demo': resolve(appRoot, 'src/main/native/demo.ts'),
+          'native-bench': resolve(appRoot, 'src/main/native/benchmark.ts'),
+          'native-ui-probe': resolve(appRoot, 'src/main/native/ui-probe.ts')
+        }
+      },
       externalizeDeps: {
         exclude: ['@gestura/core', 'zod']
       }

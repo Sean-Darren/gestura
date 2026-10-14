@@ -22,3 +22,42 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: darwin-arm64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: darwin-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: win32-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.11.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: rustup toolchain install stable --profile minimal --component clippy,rustfmt
+      - run: rustup default stable
+      - run: rustup target add ${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: cargo fmt --manifest-path native/gestura-native/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path native/gestura-native/Cargo.toml --locked --target ${{ matrix.target }} --all-targets -- -D warnings
+      - run: cargo test --manifest-path native/gestura-native/Cargo.toml --locked --no-default-features
+      - run: node native/gestura-native/scripts/build.mjs ${{ matrix.target }}
+      - run: node native/gestura-native/scripts/smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gestura-native-${{ matrix.artifact }}
+          path: native/gestura-native/prebuilds/gestura-native.${{ matrix.artifact }}.node
+          if-no-files-found: error
