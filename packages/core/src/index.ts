@@ -39,6 +39,7 @@ export type IpcEnvelope = {
 export function parseIpcEnvelope(value: unknown): IpcEnvelope {
   const envelope = IpcEnvelopeSchema.parse(value)
   const payload = IPC_PAYLOAD_SCHEMAS[envelope.channel].parse(envelope.payload)
+
   return { channel: envelope.channel, payload, t: envelope.t } as IpcEnvelope
 }
 

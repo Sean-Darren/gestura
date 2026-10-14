@@ -5,13 +5,17 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
+    "native:demo": "electron-vite build && electron out/main/native-demo.js",
+    "native:bench": "electron-vite build && electron out/main/native-bench.js",
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {
     "@gestura/core": "workspace:*",
+    "@gestura/native": "workspace:*",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

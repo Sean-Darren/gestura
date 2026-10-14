@@ -7,6 +7,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "native:build": "node native/gestura-native/scripts/build.mjs",
+    "native:demo": "pnpm native:build && pnpm --filter @gestura/desktop native:demo",
+    "native:bench": "pnpm native:build && pnpm --filter @gestura/desktop native:bench",
     "dev": "pnpm --filter @gestura/desktop dev",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0",

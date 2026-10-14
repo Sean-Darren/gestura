@@ -202,12 +202,18 @@ importers:
       '@gestura/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gestura/native':
+        specifier: workspace:*
+        version: link:../../native/gestura-native
       react:
         specifier: ^19.2.1
         version: 19.3.0
       react-dom:
         specifier: ^19.2.1
         version: 19.3.0(react@19.3.0)
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.7
     devDependencies:
       '@types/react':
         specifier: ^19.2.7
@@ -231,6 +237,8 @@ importers:
   integrations/excel-addin: {}
 
   integrations/vscode: {}
+
+  native/gestura-native: {}
 
   packages/core:
     dependencies:

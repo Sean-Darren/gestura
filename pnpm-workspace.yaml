@@ -3,6 +3,7 @@ packages:
   - packages/*
   - integrations/*
   - tools/*
+  - native/*
 minimumReleaseAgeExclude:
   - electron@44.7.1
 allowBuilds:

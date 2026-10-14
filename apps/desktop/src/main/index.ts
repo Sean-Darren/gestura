@@ -4,12 +4,12 @@ import { createIpcEnvelope, parseIpcEnvelope } from '@gestura/core'
 import { loadAppConfig } from './config'
 import { installNetworkPolicy } from './network'
 import { createBlockedRequestLogger } from './network/local-log'
-import { PauseController, pauseAccelerator } from './pause'
+import { pauseAccelerator } from './pause'
+import { pause, nativeInput } from './native/runtime'
 
 const trustedWebContents = new Set<number>()
 let controlWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
-const pause = new PauseController()
 type RendererPage = 'control' | 'overlay' | 'vision'
 
 function localRendererOrigin(value: string | undefined): string | undefined {
@@ -193,6 +193,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  nativeInput.dispose()
   globalShortcut.unregisterAll()
   trustedWebContents.clear()
   controlWindow = null
