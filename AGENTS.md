@@ -28,14 +28,14 @@ Accessibility permission; camera and microphone need their own permissions.
 
 ### Targets (tests and benchmarks should measure these)
 
-| Area | Target |
-| --- | --- |
-| Pointing | ≥ 85% hit rate on standard UI elements; cursor latency < 100 ms (p95); false clicks < 5% |
-| Effort | ≥ 60% fewer physical input actions, ≥ 40% less task time vs head mouse + on-screen keyboard (hypothesis) |
-| GenAI | ≥ 80% formulas correct first time; ≥ 95% after one spoken correction |
-| Voice | ≥ 90% of scripted Cantonese / English / code-mixed commands → correct intent |
-| Onboarding | Setup + calibration < 2 min, unaided; SUS ≥ 68 |
-| Privacy | No video or audio leaves the device (PDPO, PCPD AI Model Framework) |
+| Area       | Target                                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
+| Pointing   | ≥ 85% hit rate on standard UI elements; cursor latency < 100 ms (p95); false clicks < 5%                 |
+| Effort     | ≥ 60% fewer physical input actions, ≥ 40% less task time vs head mouse + on-screen keyboard (hypothesis) |
+| GenAI      | ≥ 80% formulas correct first time; ≥ 95% after one spoken correction                                     |
+| Voice      | ≥ 90% of scripted Cantonese / English / code-mixed commands → correct intent                             |
+| Onboarding | Setup + calibration < 2 min, unaided; SUS ≥ 68                                                           |
+| Privacy    | No video or audio leaves the device (PDPO, PCPD AI Model Framework)                                      |
 
 ## Hard rules (only the human maintainer may edit this section)
 
@@ -109,18 +109,18 @@ docs/                     PROGRESS.md, open-questions.md, decisions/ (ADRs)
 
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Install | `pnpm install` |
-| Fetch models | `pnpm models:fetch` |
-| Build native addon (current platform) | `pnpm native:build` |
-| Native demo / UI element probe | `pnpm native:demo` / `pnpm native:ui-probe` |
-| Run app (dev) | `pnpm dev` |
-| Lint + typecheck + test (run before saying "done") | `pnpm verify` |
-| Unit tests only | `pnpm test` |
-| Pointing benchmark | `pnpm bench:pointing` |
-| Voice benchmark | `pnpm bench:voice` |
-| Formula benchmark | `pnpm bench:formula` |
+| Task                                               | Command                                     |
+| -------------------------------------------------- | ------------------------------------------- |
+| Install                                            | `pnpm install`                              |
+| Fetch models                                       | `pnpm models:fetch`                         |
+| Build native addon (current platform)              | `pnpm native:build`                         |
+| Native demo / UI element probe                     | `pnpm native:demo` / `pnpm native:ui-probe` |
+| Run app (dev)                                      | `pnpm dev`                                  |
+| Lint + typecheck + test (run before saying "done") | `pnpm verify`                               |
+| Unit tests only                                    | `pnpm test`                                 |
+| Pointing benchmark                                 | `pnpm bench:pointing`                       |
+| Voice benchmark                                    | `pnpm bench:voice`                          |
+| Formula benchmark                                  | `pnpm bench:formula`                        |
 
 If a command here does not exist yet, create it in the step that needs it and
 update this table.
@@ -141,8 +141,16 @@ update this table.
 ## Conventions
 
 - TypeScript strict, ESM, no `any`, no default exports in packages.
-- Renderer UI: React + TypeScript (electron-vite template in `apps/desktop`).
-  Do not add another UI framework.
+- Renderer UI: React + TypeScript (electron-vite template in `apps/desktop`)
+  with Tailwind CSS and shadcn/ui. Do not add another UI framework.
+- UI components may come from 21st.dev via the 21st-ui skill / MCP, at
+  development time only. Before keeping one: remove any runtime network use
+  (web fonts, CDN images, remote scripts), check its licence, and adapt it
+  to the accessibility rules below. Do not use it for the overlay window.
+- Accessibility rules for all UI: interactive targets ≥ 48 px (phrase palette
+  tiles ≥ 64 px); nothing reachable only by hover; WCAG AA contrast or better;
+  respect reduced motion and keep animation minimal (motion pulls the user's
+  gaze); everything operable by dwell.
 - Tests: Vitest. Every pure module ships with unit tests; gesture and pointer
   logic is tested against replay fixtures in `fixtures/landmarks/`.
 - Rust: `cargo clippy -D warnings`; no `unwrap()` outside tests.

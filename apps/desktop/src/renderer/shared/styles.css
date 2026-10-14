@@ -1,0 +1,32 @@
+:root {
+  color: #17211d;
+  background: #f4f6f3;
+  font-family: system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+main {
+  padding: 24px;
+}
+
+.overlay-page,
+.overlay-page body,
+.overlay-page #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.overlay-placeholder {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

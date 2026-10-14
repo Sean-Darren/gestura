@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+  - integrations/*
+  - tools/*
+minimumReleaseAgeExclude:
+  - electron@44.7.1
+allowBuilds:
+  electron: true
+  esbuild: true

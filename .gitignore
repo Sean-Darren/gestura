@@ -4,3 +4,14 @@ out
 .DS_Store
 .eslintcache
 *.log*
+.claude
+.cursor
+.agents
+coverage
+.turbo
+models/*
+!models/.gitkeep
+.codex
+docs
+.env
+.env.local
