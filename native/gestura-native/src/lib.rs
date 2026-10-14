@@ -3,6 +3,7 @@
 pub mod input;
 #[cfg(target_os = "macos")]
 mod macos;
+pub mod ui;
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "macos")]

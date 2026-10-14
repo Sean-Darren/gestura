@@ -8,7 +8,8 @@
     "native:demo": "electron-vite build && electron out/main/native-demo.js",
     "native:bench": "electron-vite build && electron out/main/native-bench.js",
     "dev": "electron-vite dev",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "native:ui-probe": "electron-vite build && electron out/main/native-ui-probe.js"
   },
   "dependencies": {
     "@gestura/core": "workspace:*",

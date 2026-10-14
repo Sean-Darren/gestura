@@ -238,7 +238,11 @@ importers:
 
   integrations/vscode: {}
 
-  native/gestura-native: {}
+  native/gestura-native:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
   packages/core:
     dependencies:

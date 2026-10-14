@@ -28,3 +28,13 @@ export const AppConfigSchema = z
 export type AppConfig = z.infer<typeof AppConfigSchema>
 
 export const DEFAULT_CONFIG = AppConfigSchema.parse({})
+
+export const UiQueryConfigSchema = z
+  .object({
+    cacheMaxAgeMs: z.number().int().min(1).max(1000).default(500),
+    timeoutMs: z.number().int().min(1).max(1000).default(250),
+    probeRadiusPx: z.number().finite().min(0).max(10_000).default(150)
+  })
+  .strict()
+export type UiQueryConfig = z.infer<typeof UiQueryConfigSchema>
+export const DEFAULT_UI_QUERY_CONFIG = UiQueryConfigSchema.parse({})

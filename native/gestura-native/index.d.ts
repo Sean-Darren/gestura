@@ -1,3 +1,5 @@
+import type { UiElement, ForegroundApp } from '@gestura/core'
+export type { UiElement, ForegroundApp } from '@gestura/core'
 export type MouseButton = 'left' | 'right' | 'middle'
 export interface CursorPoint {
   x: number
@@ -12,6 +14,9 @@ export interface NativeDisplay {
 }
 /** Raw addon interface. Desktop callers use the validated main-process wrapper. */
 export interface NativeInput {
+  elementAt(x: number, y: number): Promise<UiElement | null>
+  elementsNear(x: number, y: number, radiusPx: number): Promise<UiElement[]>
+  foregroundApp(): Promise<ForegroundApp>
   moveTo(x: number, y: number): void
   click(button: MouseButton): void
   doubleClick(): void

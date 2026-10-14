@@ -1,3 +1,4 @@
+pub(crate) mod ui;
 use crate::input::*;
 use std::{mem::size_of, ptr};
 use windows_sys::Win32::{

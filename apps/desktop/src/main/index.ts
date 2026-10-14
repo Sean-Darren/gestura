@@ -5,7 +5,7 @@ import { loadAppConfig } from './config'
 import { installNetworkPolicy } from './network'
 import { createBlockedRequestLogger } from './network/local-log'
 import { pauseAccelerator } from './pause'
-import { pause, nativeInput } from './native/runtime'
+import { pause, nativeInput, nativeUi } from './native/runtime'
 
 const trustedWebContents = new Set<number>()
 let controlWindow: BrowserWindow | null = null
@@ -194,6 +194,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   nativeInput.dispose()
+  nativeUi.dispose()
   globalShortcut.unregisterAll()
   trustedWebContents.clear()
   controlWindow = null

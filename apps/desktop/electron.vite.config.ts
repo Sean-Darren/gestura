@@ -12,7 +12,8 @@ export default defineConfig({
         input: {
           index: resolve(appRoot, 'src/main/index.ts'),
           'native-demo': resolve(appRoot, 'src/main/native/demo.ts'),
-          'native-bench': resolve(appRoot, 'src/main/native/benchmark.ts')
+          'native-bench': resolve(appRoot, 'src/main/native/benchmark.ts'),
+          'native-ui-probe': resolve(appRoot, 'src/main/native/ui-probe.ts')
         }
       },
       externalizeDeps: {

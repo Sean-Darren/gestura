@@ -20,5 +20,8 @@
     "index.mjs",
     "index.d.ts",
     "prebuilds/*.node"
-  ]
+  ],
+  "dependencies": {
+    "@gestura/core": "workspace:*"
+  }
 }

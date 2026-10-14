@@ -1,6 +1,6 @@
 import { app, globalShortcut } from 'electron'
 import { pauseAccelerator } from '../pause'
-import { pause, nativeInput } from './runtime'
+import { pause, nativeInput, nativeUi } from './runtime'
 
 export async function runNativeTool(operation: () => Promise<void>): Promise<void> {
   await app.whenReady()
@@ -14,6 +14,7 @@ export async function runNativeTool(operation: () => Promise<void>): Promise<voi
     await operation()
   } finally {
     nativeInput.dispose()
+    nativeUi.dispose()
     globalShortcut.unregisterAll()
     app.quit()
   }
