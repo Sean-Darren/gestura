@@ -2,11 +2,20 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import { bundleVisionAssets } from '../../scripts/model-assets.mjs'
 
 const appRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   main: {
+    plugins: [
+      {
+        name: 'gestura-local-vision-assets',
+        buildStart: async () => {
+          await bundleVisionAssets()
+        }
+      }
+    ],
     build: {
       rollupOptions: {
         input: {
@@ -17,7 +26,7 @@ export default defineConfig({
         }
       },
       externalizeDeps: {
-        exclude: ['@gestura/core', 'zod']
+        exclude: ['@gestura/core', '@gestura/replay', 'zod']
       }
     }
   },

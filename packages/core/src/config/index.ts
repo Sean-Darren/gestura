@@ -38,3 +38,14 @@ export const UiQueryConfigSchema = z
   .strict()
 export type UiQueryConfig = z.infer<typeof UiQueryConfigSchema>
 export const DEFAULT_UI_QUERY_CONFIG = UiQueryConfigSchema.parse({})
+
+export const VisionConfigSchema = z
+  .object({
+    width: z.number().int().positive().default(1280),
+    height: z.number().int().positive().default(720),
+    frameRate: z.number().int().min(30).max(120).default(60),
+    metricsIntervalMs: z.number().int().min(100).max(1000).default(100),
+    recordingPromptMs: z.number().int().min(1000).max(30_000).default(5000)
+  })
+  .strict()
+export const DEFAULT_VISION_CONFIG = VisionConfigSchema.parse({})

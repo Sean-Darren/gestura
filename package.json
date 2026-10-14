@@ -15,7 +15,8 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "pnpm --recursive --if-present typecheck",
     "verify": "pnpm lint && pnpm typecheck && pnpm test",
-    "native:ui-probe": "pnpm native:build && pnpm --filter @gestura/desktop native:ui-probe"
+    "native:ui-probe": "pnpm native:build && pnpm --filter @gestura/desktop native:ui-probe",
+    "models:fetch": "node scripts/fetch-models.mjs"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

@@ -1,13 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ShellApp } from '../shared/ShellApp'
+import { DebugPanel } from './DebugPanel'
 import '../shared/styles.css'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Control renderer root is missing')
-
 createRoot(root).render(
   <StrictMode>
-    <ShellApp title="Gestura Control" />
+    <DebugPanel />
   </StrictMode>
 )
