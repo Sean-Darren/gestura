@@ -140,3 +140,165 @@ main {
     transition: none;
   }
 }
+
+.calibration-launch {
+  max-width: 860px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+.calibration-wizard {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px;
+}
+.calibration-wizard header {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.calibration-timer {
+  font-variant-numeric: tabular-nums;
+}
+.calibration-instructions {
+  max-width: 700px;
+  margin: 20px auto;
+  line-height: 1.5;
+}
+.calibration-actions {
+  max-width: 800px;
+  margin: 32px auto 0;
+  justify-content: center;
+}
+.calibration-actions button {
+  min-height: 72px;
+  min-width: 160px;
+}
+.calibration-help {
+  max-width: 800px;
+  margin: 20px auto;
+  line-height: 1.5;
+}
+.framing-guide {
+  border: 2px solid #77877e;
+  width: min(320px, 90%);
+  min-height: 100px;
+  margin: 16px auto;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 12px;
+}
+.calibration-direction {
+  font-size: 1.5rem;
+}
+.calibration-target {
+  position: fixed;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  border: 3px solid #24563d;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #f4f6f3;
+  display: grid;
+  place-content: center;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 3;
+}
+.calibration-target progress {
+  width: 64px;
+  height: 12px;
+  accent-color: #24563d;
+}
+.gaze-dot::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #17211d;
+}
+.calibration-cursor {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #17211d;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 4;
+}
+.calibration-cursor progress {
+  width: 26px;
+  height: 8px;
+  margin-top: 32px;
+  accent-color: #24563d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .calibration-wizard * {
+    animation: none;
+    transition: none;
+  }
+}
+.calibration-target-mode .calibration-instructions {
+  position: fixed;
+  top: 26%;
+  left: 50%;
+  width: 45%;
+  margin: 0;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.calibration-target-mode .calibration-actions {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  width: calc(100% - 32px);
+  margin: 0;
+  transform: translateX(-50%);
+}
+.calibration-target-mode .calibration-actions button[data-dwell='logging'] {
+  display: none;
+}
+.calibration-target-mode .calibration-help {
+  position: fixed;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+@media (max-width: 480px) {
+  .calibration-target-mode .calibration-actions button {
+    width: auto;
+    min-width: 140px;
+  }
+}
+@media (max-width: 480px) {
+  .calibration-wizard {
+    padding: 12px;
+  }
+  .calibration-wizard h1 {
+    font-size: 1.5rem;
+    margin: 12px 0;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-instructions {
+    margin: 12px auto;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-instructions p {
+    margin: 8px 0;
+    font-size: 0.9rem;
+  }
+  .calibration-wizard .framing-guide {
+    min-height: 64px;
+    margin: 8px auto;
+    padding: 8px;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-actions {
+    margin-top: 12px;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-actions button {
+    width: calc(50% - 6px);
+    min-width: 48px;
+  }
+}

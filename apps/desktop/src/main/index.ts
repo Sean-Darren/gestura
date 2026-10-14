@@ -1,3 +1,6 @@
+import { CalibrationController } from './calibration/controller'
+import { CalibrationStore } from './calibration/store'
+import { PointerController } from './pointer/controller'
 import {
   app,
   BrowserWindow,
@@ -35,6 +38,10 @@ let visionWindow: BrowserWindow | null = null
 let visionReady = false
 let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
+let pointerController: PointerController | undefined
+let calibrationController: CalibrationController | undefined
+let calibrationWindowBounds: ReturnType<BrowserWindow['getBounds']> | undefined
+let unsubscribePointer: (() => void) | undefined
 let recorderTimer: ReturnType<typeof setInterval> | undefined
 let currentVisionStatus: IpcPayloadFor<'vision:status'> = {
   state: 'stopped',
@@ -138,6 +145,11 @@ function createControlWindow(): BrowserWindow {
     autoHideMenuBar: true
   })
   controlWindow.once('ready-to-show', () => controlWindow?.show())
+  controlWindow.on('closed', () => {
+    if (calibrationController?.state.active)
+      void calibrationController.control({ operation: 'cancel' })
+    calibrationWindowBounds = undefined
+  })
   return controlWindow
 }
 
@@ -187,12 +199,25 @@ function registerIpc(): void {
       const envelope = parseIpcEnvelope(candidate)
       const role = trustedWebContents.get(event.sender.id)
       if (!role || !acceptsRendererChannel(role, envelope.channel)) return
+      if (envelope.channel === 'vision:diagnostics') {
+        calibrationController?.diagnostics(envelope.payload)
+        return
+      }
+      if (envelope.channel === 'calibration:control') {
+        void calibrationController?.control(envelope.payload)
+        return
+      }
       if (envelope.channel === 'vision:frame') {
         visionController?.receive(envelope.payload)
         return
       }
       if (envelope.channel === 'vision:status') {
         visionController?.receiveStatus(envelope.payload)
+        return
+      }
+      if (envelope.channel === 'pointer:control') {
+        if (!calibrationController?.state.active)
+          pointerController?.setEnabled(envelope.payload.enabled)
         return
       }
       if (envelope.channel === 'vision:control') {
@@ -215,6 +240,17 @@ function registerIpc(): void {
       }
       if (envelope.channel === 'app:ready') {
         if (role === 'control') {
+          calibrationController?.firstRun()
+          if (calibrationController)
+            event.sender.send(
+              'gestura:ipc',
+              createIpcEnvelope('calibration:state', calibrationController.state)
+            )
+          if (pointerController)
+            event.sender.send(
+              'gestura:ipc',
+              createIpcEnvelope('pointer:metrics', pointerController.metrics)
+            )
           event.sender.send('gestura:ipc', createIpcEnvelope('vision:status', currentVisionStatus))
           event.sender.send(
             'gestura:ipc',
@@ -272,8 +308,10 @@ function registerPauseHotkey(): void {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   const config = loadAppConfig(join(app.getPath('userData'), 'config.json'))
+  const calibrationStore = new CalibrationStore(app.getPath('userData'))
+  const calibrationProfile = await calibrationStore.load()
   installNetworkPolicies(config)
   protocol.handle('app', (request) =>
     readVisionAsset(
@@ -301,7 +339,10 @@ app.whenReady().then(() => {
       details.mediaType === 'video' ? ['video'] : []
     )
   )
-  const sendControl = <Channel extends 'vision:status' | 'vision:metrics' | 'replay:prompt'>(
+  const sendControl = <
+    Channel extends
+      'vision:status' | 'vision:metrics' | 'replay:prompt' | 'pointer:metrics' | 'calibration:state'
+  >(
     channel: Channel,
     payload: IpcSendPayloadFor<Channel>
   ): void => {
@@ -326,6 +367,8 @@ app.whenReady().then(() => {
         )
     },
     status: (value) => {
+      if (value.state === 'error') calibrationController?.fail(value.message)
+      pointerController?.setSource(value.state)
       currentVisionStatus = value
       sendControl('vision:status', value)
     },
@@ -353,7 +396,81 @@ app.whenReady().then(() => {
         : loadRecording(selection.filePaths[0])
     }
   })
-  recorderTimer = setInterval(() => visionController?.tick(), 100)
+  pointerController = new PointerController({
+    bridge: nativeInput,
+    pause,
+    config: config.pointer,
+    profile: config.pointerProfile,
+    now: () => performance.timeOrigin + performance.now(),
+    publish: (value) => sendControl('pointer:metrics', value)
+  })
+  if (calibrationProfile) pointerController.applyCalibration(calibrationProfile)
+  calibrationController = new CalibrationController({
+    profile: calibrationProfile,
+    store: calibrationStore,
+    pause,
+    now: () => performance.timeOrigin + performance.now(),
+    logging: calibrationProfile?.loggingEnabled ?? config.logging.enabled,
+    display: () => {
+      const display = screen.getPrimaryDisplay()
+      return {
+        width: display.bounds.width,
+        height: display.bounds.height,
+        scaleFactor: display.scaleFactor
+      }
+    },
+    publish: (state) => sendControl('calibration:state', state),
+    apply: (profile) => {
+      const enabled = pointerController?.metrics.enabled
+      pointerController?.applyCalibration(profile)
+      if (enabled) pointerController?.setEnabled(true)
+    },
+    activate: () => pointerController?.setEnabled(true),
+    camera: (start) => {
+      pointerController?.setEnabled(false)
+      if (start) {
+        visionController?.stop()
+        visionController?.start()
+      } else visionController?.stop()
+    },
+    fullScreen: (active) => {
+      const window = controlWindow
+      if (!window || window.isDestroyed()) return
+      if (active) {
+        calibrationWindowBounds ??= window.getBounds()
+        window.setBounds(screen.getPrimaryDisplay().bounds)
+        window.setFullScreen(true)
+      } else {
+        const bounds = calibrationWindowBounds
+        calibrationWindowBounds = undefined
+        window.once('leave-full-screen', () => {
+          if (bounds && !window.isDestroyed()) window.setBounds(bounds)
+        })
+        window.setFullScreen(false)
+      }
+    }
+  })
+  unsubscribePointer = visionController.frames.subscribe((frame) => {
+    calibrationController?.consume(frame)
+    pointerController?.consume(frame)
+  })
+  screen.on('display-added', () => {
+    pointerController?.invalidateDisplay()
+    calibrationController?.displayChanged()
+  })
+  screen.on('display-removed', () => {
+    pointerController?.invalidateDisplay()
+    calibrationController?.displayChanged()
+  })
+  screen.on('display-metrics-changed', () => {
+    pointerController?.invalidateDisplay()
+    calibrationController?.displayChanged()
+  })
+  recorderTimer = setInterval(() => {
+    visionController?.tick()
+    pointerController?.tick()
+    calibrationController?.tick()
+  }, 100)
   registerPauseHotkey()
   registerIpc()
   createWindows()
@@ -368,6 +485,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   clearInterval(recorderTimer)
+  unsubscribePointer?.()
+  pointerController?.dispose()
+  calibrationController?.dispose()
   visionController?.dispose()
   nativeInput.dispose()
   nativeUi.dispose()

@@ -69,3 +69,18 @@ describe('vision boundary', () => {
     ).toBe(0)
   })
 })
+
+it('accepts pointer enable messages only from control', () => {
+  expect(acceptsRendererChannel('control', 'pointer:control')).toBe(true)
+  expect(acceptsRendererChannel('vision', 'pointer:control')).toBe(false)
+  expect(acceptsRendererChannel('overlay', 'pointer:control')).toBe(false)
+  expect(acceptsRendererChannel('control', 'pointer:metrics')).toBe(false)
+})
+
+it('limits calibration commands to control and diagnostics to vision', () => {
+  expect(acceptsRendererChannel('control', 'calibration:control')).toBe(true)
+  expect(acceptsRendererChannel('vision', 'calibration:control')).toBe(false)
+  expect(acceptsRendererChannel('vision', 'vision:diagnostics')).toBe(true)
+  expect(acceptsRendererChannel('control', 'vision:diagnostics')).toBe(false)
+  expect(acceptsRendererChannel('control', 'calibration:state')).toBe(false)
+})

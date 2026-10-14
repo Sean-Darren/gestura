@@ -47,6 +47,19 @@ function fake(): {
   return { deps, stop, close, video, statuses, tick: () => callback?.() }
 }
 describe('local face capture', () => {
+  it('publishes scalar lighting summaries locally and never pixels', async () => {
+    const f = fake(),
+      diagnostics = vi.fn()
+    f.deps.luminance = () => 0.5
+    const source = new CameraSource(() => {}, f.deps, diagnostics)
+    await source.start()
+    expect(diagnostics).toHaveBeenCalledWith({ tCapture: 100, luminance: 0.5 })
+    f.video.currentTime = 2
+    f.tick()
+    expect(diagnostics).toHaveBeenCalledOnce()
+    source.stop()
+  })
+
   it('uses current GPU/VIDEO options and requested camera constraints, emitting features only', async () => {
     expect(FACE_OPTIONS).toMatchObject({
       runningMode: 'VIDEO',

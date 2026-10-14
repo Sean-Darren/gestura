@@ -14,6 +14,7 @@ export const FACE_OPTIONS: FaceLandmarkerOptions = {
   outputFacialTransformationMatrixes: true
 }
 export interface CameraDependencies {
+  luminance?(video: HTMLVideoElement): number | undefined
   media(constraints: MediaStreamConstraints): Promise<MediaStream>
   landmarker(): Promise<{
     detectForVideo(video: HTMLVideoElement, timestamp: number): FaceLandmarkerResult
@@ -23,7 +24,22 @@ export interface CameraDependencies {
   now(): number
   schedule(callback: () => void, delay: number): () => void
 }
+let lightCanvas: HTMLCanvasElement | undefined
 export const cameraDependencies: CameraDependencies = {
+  luminance: (video) => {
+    lightCanvas ??= document.createElement('canvas')
+    lightCanvas.width = 16
+    lightCanvas.height = 16
+    const context = lightCanvas.getContext('2d', { willReadFrequently: true })
+    if (!context) return undefined
+    context.drawImage(video, 0, 0, 16, 16)
+    const data = context.getImageData(0, 0, 16, 16).data
+    let sum = 0
+    for (let i = 0; i < data.length; i += 4)
+      sum += 0.2126 * data[i]! + 0.7152 * data[i + 1]! + 0.0722 * data[i + 2]!
+    context.clearRect(0, 0, 16, 16)
+    return sum / (256 * 255)
+  },
   media: (constraints) => navigator.mediaDevices.getUserMedia(constraints),
   landmarker: async () =>
     FaceLandmarker.createFromOptions(
@@ -55,7 +71,11 @@ export class CameraSource implements FrameSource {
   private settings: MediaTrackSettings = {}
   constructor(
     private readonly status: (value: VisionStatus) => void,
-    private readonly dependencies: CameraDependencies = cameraDependencies
+    private readonly dependencies: CameraDependencies = cameraDependencies,
+    private readonly diagnostics: (value: {
+      tCapture: number
+      luminance: number
+    }) => void = () => {}
   ) {}
   subscribe(listener: (frame: FaceFrame) => void): () => void {
     return this.bus.subscribe(listener)
@@ -107,6 +127,7 @@ export class CameraSource implements FrameSource {
       committed = true
       this.report('running', 'Camera tracking is local')
       let previousTime = -1
+      let lastLight = -Infinity
       const tick = (): void => {
         if (generation !== this.generation || this.paused) return
         const tickStart = this.dependencies.now()
@@ -115,7 +136,13 @@ export class CameraSource implements FrameSource {
             previousTime = video.currentTime
             const capture = this.dependencies.now()
             const result = model?.detectForVideo(video, capture)
-            if (result) this.bus.emit(toFaceFrame(result, capture, this.dependencies.now()))
+            const inferDone = this.dependencies.now()
+            if (capture - lastLight >= 500) {
+              const luminance = this.dependencies.luminance?.(video)
+              if (luminance !== undefined) this.diagnostics({ tCapture: capture, luminance })
+              lastLight = capture
+            }
+            if (result) this.bus.emit(toFaceFrame(result, capture, inferDone))
           }
           this.cancel = this.dependencies.schedule(
             tick,

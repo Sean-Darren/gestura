@@ -205,6 +205,9 @@ importers:
       '@gestura/native':
         specifier: workspace:*
         version: link:../../native/gestura-native
+      '@gestura/pointer':
+        specifier: workspace:*
+        version: link:../../packages/pointer
       '@gestura/replay':
         specifier: workspace:*
         version: link:../../tools/replay
@@ -262,7 +265,11 @@ importers:
 
   packages/intent: {}
 
-  packages/pointer: {}
+  packages/pointer:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../core
 
   tools/formula-bench: {}
 

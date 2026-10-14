@@ -1,3 +1,9 @@
+import {
+  CalibrationControlSchema,
+  CalibrationStateSchema,
+  VisionDiagnosticsSchema
+} from './calibration'
+import { PointerControlSchema, PointerMetricsSchema } from './pointer'
 import { z } from 'zod'
 import {
   FaceFrameSchema,
@@ -18,7 +24,12 @@ export const IPC_CHANNELS = [
   'vision:metrics',
   'vision:control',
   'replay:control',
-  'replay:prompt'
+  'replay:prompt',
+  'pointer:control',
+  'pointer:metrics',
+  'calibration:control',
+  'calibration:state',
+  'vision:diagnostics'
 ] as const
 
 export const IPC_TRANSPORT_CHANNEL = 'gestura:ipc'
@@ -32,7 +43,12 @@ export const IPC_PAYLOAD_SCHEMAS = {
   'vision:metrics': VisionMetricsSchema,
   'vision:control': VisionControlSchema,
   'replay:control': ReplayControlSchema,
-  'replay:prompt': ReplayPromptSchema
+  'replay:prompt': ReplayPromptSchema,
+  'pointer:control': PointerControlSchema,
+  'pointer:metrics': PointerMetricsSchema,
+  'calibration:control': CalibrationControlSchema,
+  'calibration:state': CalibrationStateSchema,
+  'vision:diagnostics': VisionDiagnosticsSchema
 } as const
 
 export const IpcEnvelopeSchema = z
@@ -82,3 +98,7 @@ export function createIpcEnvelope<Channel extends IpcChannel>(
 export * from './ui-elements'
 
 export * from './face-frame'
+
+export * from './pointer'
+
+export * from './calibration'

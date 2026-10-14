@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX, ButtonHTMLAttributes } from 'react'
-import type { IpcPayloadFor, VisionMetrics, VisionStatus } from '@gestura/core'
+import type { IpcPayloadFor, VisionMetrics, VisionStatus, PointerMetrics } from '@gestura/core'
 
-function DwellButton({
+export function DwellButton({
   onClick,
   disabled,
   children,
@@ -49,13 +49,25 @@ const emptyMetrics: VisionMetrics = {
   eyeBlinkRight: 0,
   jawOpen: 0
 }
-export function DebugPanel(): JSX.Element {
+export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): JSX.Element {
   const [status, setStatus] = useState<VisionStatus>({
     state: 'stopped',
     message: 'Start tracking to measure this camera',
     width: 0,
     height: 0,
     cameraFps: 0
+  })
+  const [pointer, setPointer] = useState<PointerMetrics>({
+    enabled: false,
+    replay: false,
+    samples: 0,
+    latencyP50Ms: 0,
+    latencyP95Ms: 0,
+    tCapture: 0,
+    tInferDone: 0,
+    tPointerDone: 0,
+    tMoveSent: 0,
+    message: 'Pointer control is off'
   })
   const [metrics, setMetrics] = useState(emptyMetrics)
   const [paused, setPaused] = useState(false)
@@ -68,6 +80,7 @@ export function DebugPanel(): JSX.Element {
   })
   useEffect(() => {
     const subscriptions = [
+      window.gestura.on('pointer:metrics', setPointer),
       window.gestura.on('vision:status', setStatus),
       window.gestura.on('vision:metrics', setMetrics),
       window.gestura.on('replay:prompt', setPrompt),
@@ -145,6 +158,44 @@ export function DebugPanel(): JSX.Element {
           </div>
         </dl>
         <p className="hint">Timing uses the latest two seconds of processed frames.</p>
+      </section>
+      <section aria-labelledby="pointer-heading">
+        <h2 id="pointer-heading">Head pointer</h2>
+        <p role="status">{pointer.message}</p>
+        <div className="controls">
+          <DwellButton
+            disabled={paused && !pointer.enabled}
+            onClick={() => window.gestura.send('pointer:control', { enabled: !pointer.enabled })}
+          >
+            {pointer.enabled ? 'Disable pointer control' : 'Enable pointer control'}
+          </DwellButton>
+        </div>
+        <dl className="measurements">
+          <div>
+            <dt>Capture to move p50</dt>
+            <dd>
+              {!paused && pointer.samples > 0
+                ? `${pointer.latencyP50Ms.toFixed(1)} ms`
+                : 'Not measured'}
+            </dd>
+          </div>
+          <div>
+            <dt>Capture to move p95</dt>
+            <dd>
+              {!paused && pointer.samples > 0
+                ? `${pointer.latencyP95Ms.toFixed(1)} ms`
+                : 'Not measured'}
+            </dd>
+          </div>
+        </dl>
+        <p className="hint">
+          Primary display only.{' '}
+          {gazeEnabled
+            ? 'Calibrated gaze jumps are on.'
+            : 'Gaze jumps are off; enable them after gaze calibration.'}{' '}
+          Replay previews never move the cursor. Timing ends when movement is sent, before OS
+          delivery.
+        </p>
       </section>
       <section aria-labelledby="scores-heading">
         <h2 id="scores-heading">Blendshape scores</h2>

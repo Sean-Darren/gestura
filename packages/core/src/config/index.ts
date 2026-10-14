@@ -1,3 +1,4 @@
+import { PointerProfileSchema } from '../pointer'
 import { z } from 'zod'
 
 const NetworkHostSchema = z
@@ -17,17 +18,6 @@ export const NetworkConfigSchema = z
   .strict()
 
 export const LoggingConfigSchema = z.object({ enabled: z.boolean().default(false) }).strict()
-
-export const AppConfigSchema = z
-  .object({
-    network: NetworkConfigSchema.default({ allowlist: [] }),
-    logging: LoggingConfigSchema.default({ enabled: false })
-  })
-  .strict()
-
-export type AppConfig = z.infer<typeof AppConfigSchema>
-
-export const DEFAULT_CONFIG = AppConfigSchema.parse({})
 
 export const UiQueryConfigSchema = z
   .object({
@@ -49,3 +39,57 @@ export const VisionConfigSchema = z
   })
   .strict()
 export const DEFAULT_VISION_CONFIG = VisionConfigSchema.parse({})
+
+export const PointerConfigSchema = z
+  .object({
+    deadZoneDeg: z.number().finite().min(0).max(10).default(0.6),
+    yawRangeDeg: z.number().finite().min(5).max(60).default(25),
+    pitchRangeDeg: z.number().finite().min(5).max(60).default(20),
+    centerGain: z.number().finite().min(0.05).max(1).default(0.35),
+    minCutoff: z.number().finite().positive().default(1),
+    beta: z.number().finite().nonnegative().default(0.01),
+    dCutoff: z.number().finite().positive().default(1),
+    gazeEnabled: z.boolean().default(false),
+    gazeStableMs: z.number().finite().min(1).default(300),
+    gazeJumpDistancePx: z.number().finite().positive().default(300),
+    gazeStabilityRadiusPx: z.number().finite().positive().default(40),
+    gazeHeadCorrectionPerDeg: z.number().finite().nonnegative().default(0.005),
+    jitterThresholdPx: z.number().finite().positive().default(3),
+    staleFrameMs: z.number().finite().positive().default(250)
+  })
+  .strict()
+  .refine((value) => value.deadZoneDeg < Math.min(value.yawRangeDeg, value.pitchRangeDeg), {
+    message: 'Dead zone must be smaller than both pose ranges'
+  })
+export type PointerConfig = z.infer<typeof PointerConfigSchema>
+export const DEFAULT_POINTER_CONFIG = PointerConfigSchema.parse({})
+
+export const AppConfigSchema = z
+  .object({
+    network: NetworkConfigSchema.default({ allowlist: [] }),
+    logging: LoggingConfigSchema.default({ enabled: false }),
+    pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
+    pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } })
+  })
+  .strict()
+
+export type AppConfig = z.infer<typeof AppConfigSchema>
+
+export const DEFAULT_CONFIG = AppConfigSchema.parse({})
+
+export const CalibrationConfigSchema = z
+  .object({
+    neutralMs: z.literal(3000).default(3000),
+    rangeMs: z.number().int().min(2000).max(10000).default(5000),
+    gazeDotMs: z.literal(1500).default(1500),
+    naturalBlinkMs: z.literal(10000).default(10000),
+    longBlinkMs: z.number().int().min(400).max(2000).default(400),
+    minSamples: z.number().int().min(5).max(60).default(15),
+    ridgeLambda: z.number().finite().positive().default(0.001),
+    dwellMs: z.number().int().min(500).max(2000).default(1000),
+    targetSizePx: z.number().int().min(64).max(160).default(96),
+    darkLuminance: z.number().min(0).max(0.4).default(0.12),
+    brightLuminance: z.number().min(0.6).max(1).default(0.92)
+  })
+  .strict()
+export const DEFAULT_CALIBRATION_CONFIG = CalibrationConfigSchema.parse({})
