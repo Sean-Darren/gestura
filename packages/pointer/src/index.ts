@@ -25,6 +25,10 @@ export class PointerPipeline {
   private lastCapture = -Infinity
   private offset: Point = { x: 0, y: 0 }
   private cursor: Point | undefined
+  private latestGaze: Point | undefined
+  get gazePoint(): Readonly<Point> | undefined {
+    return this.latestGaze
+  }
   constructor(
     private readonly profile: PointerProfile,
     private readonly display: PointerDisplay,
@@ -42,6 +46,7 @@ export class PointerPipeline {
     this.lastCapture = -Infinity
     this.offset = { x: 0, y: 0 }
     this.cursor = undefined
+    this.latestGaze = undefined
   }
   hold(tCapture: number): void {
     if (!Number.isFinite(tCapture) || tCapture <= this.lastCapture) return
@@ -88,6 +93,7 @@ export class PointerPipeline {
         }
       } else gazePoint = estimateGaze(frame, pose, this.display, this.config)
     }
+    this.latestGaze = gazePoint
     const jump = this.gaze.update(gazePoint, this.cursor ?? point, frame.tCapture)
     let kind: CursorCommand['kind'] = 'head'
     if (jump) {
@@ -108,3 +114,5 @@ export class PointerPipeline {
 
 export * from './regression'
 export * from './calibration'
+
+export * from './snap'

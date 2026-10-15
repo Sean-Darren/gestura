@@ -1,3 +1,7 @@
+import { SnapController } from './snapping/controller'
+import { SnapStore } from './snapping/store'
+import coverageData from 'virtual:gestura-ui-coverage'
+import { PoorCoverageSchema } from '@gestura/core'
 import { BenchController } from './pointing-bench/controller'
 import { BenchStore } from './pointing-bench/store'
 import { OverlayController } from './gestures/overlay'
@@ -56,6 +60,7 @@ let visionWindow: BrowserWindow | null = null
 let visionReady = false
 let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
+let snapController: SnapController | undefined
 let benchController: BenchController | undefined
 let pointerController: PointerController | undefined
 let gestureOverlay: OverlayController | undefined
@@ -233,6 +238,10 @@ function registerIpc(): void {
       const envelope = parseIpcEnvelope(candidate)
       const role = trustedWebContents.get(event.sender.id)
       if (!role || !acceptsRendererChannel(role, envelope.channel)) return
+      if (envelope.channel === 'snap:control') {
+        void snapController?.setPreference(envelope.payload)
+        return
+      }
       if (envelope.channel === 'bench:control') {
         if (envelope.payload.operation !== 'start' || !calibrationController?.state.active)
           void benchController?.control(envelope.payload)
@@ -297,6 +306,11 @@ function registerIpc(): void {
             createIpcEnvelope('gestures:state', gestureOverlay.snapshot)
           )
         if (role === 'control') {
+          if (snapController)
+            event.sender.send(
+              'gestura:ipc',
+              createIpcEnvelope('snap:settings', snapController.state)
+            )
           if (benchController)
             event.sender.send(
               'gestura:ipc',
@@ -409,6 +423,7 @@ app.whenReady().then(async () => {
       | 'replay:prompt'
       | 'pointer:metrics'
       | 'calibration:state'
+      | 'snap:settings'
       | 'bench:state'
   >(
     channel: Channel,
@@ -494,7 +509,23 @@ app.whenReady().then(async () => {
     clear: () => benchStore.clear()
   })
   if (benchmarkRequested) benchController.show()
+  const snapStore = new SnapStore(app.getPath('userData'))
+  snapController = new SnapController({
+    ui: nativeUi,
+    pause,
+    platform: process.platform === 'darwin' ? 'darwin' : 'win32',
+    now: () => performance.timeOrigin + performance.now(),
+    cacheNow: () => performance.now(),
+    preferences: await snapStore.load(),
+    poor: PoorCoverageSchema.parse(coverageData),
+    config: config.snapping,
+    publish: (state) => sendControl('snap:settings', state),
+    highlight: (bounds) => gestureOverlay?.setSnap(bounds),
+    save: (value) => snapStore.save(value),
+    reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false
+  })
   pointerController = new PointerController({
+    snapping: snapController,
     bridge: nativeInput,
     pause,
     config: config.pointer,
@@ -565,16 +596,19 @@ app.whenReady().then(async () => {
   })
   screen.on('display-added', () => {
     void benchController?.control({ operation: 'cancel' })
+    snapController?.reset()
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-removed', () => {
     void benchController?.control({ operation: 'cancel' })
+    snapController?.reset()
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-metrics-changed', () => {
     void benchController?.control({ operation: 'cancel' })
+    snapController?.reset()
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
@@ -583,6 +617,7 @@ app.whenReady().then(async () => {
     pointerController?.tick()
     calibrationController?.tick()
     gestureOverlay?.tick()
+    snapController?.tick()
     benchController?.tick()
   }, 100)
   registerPauseHotkey()
@@ -605,7 +640,7 @@ app.on('before-quit', (event) => {
     if (flushingBenchmark) return
     flushingBenchmark = true
     if (!pause.paused) pause.toggle()
-    void benchController.settle().finally(() => {
+    void Promise.all([benchController.settle(), snapController?.settle()]).finally(() => {
       benchmarkFlushed = true
       app.quit()
     })
@@ -614,6 +649,7 @@ app.on('before-quit', (event) => {
   clearInterval(recorderTimer)
   unsubscribePointer?.()
   benchController?.dispose()
+  snapController?.dispose()
   pointerController?.dispose()
   gestureOverlay?.dispose()
   calibrationController?.dispose()

@@ -37,6 +37,18 @@ export function GestureOverlay(): JSX.Element {
           resume. Stop Tracking turns the camera off.
         </div>
       )}
+      {state.snap && !state.paused && (
+        <div
+          className="snap-highlight"
+          style={{
+            left: state.snap.x,
+            top: state.snap.y,
+            width: state.snap.width,
+            height: state.snap.height
+          }}
+          aria-label="Selected click target"
+        />
+      )}
       {cursor && (
         <div
           className={`gesture-pointer ${state.frozen ? 'frozen' : ''}`}

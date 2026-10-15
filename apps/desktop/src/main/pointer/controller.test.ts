@@ -295,3 +295,60 @@ it('exports individual live movement latencies and never replay or paused sample
   expect(samples).toHaveLength(2)
   controller.dispose()
 })
+
+it('leaves continuous cursor movement free and changes only click destinations to a snap center', () => {
+  const mock = new MockNativeInput(),
+    pause = new PauseController()
+  let time = 1000,
+    updates = 0,
+    resets = 0,
+    clicks = 0
+  const controller = new PointerController({
+    bridge: createNativeInput(pause, () => mock),
+    pause,
+    now: () => time,
+    publish: () => {},
+    snapping: {
+      update: () => {
+        updates++
+      },
+      reset: () => {
+        resets++
+      },
+      click: () => {
+        clicks++
+        return { x: 100, y: 120 }
+      }
+    }
+  })
+  const s = scriptedWizard()
+  completeBlinkPhase(s)
+  completeTargets(s)
+  controller.applyCalibration(s.wizard.profile(s.time()))
+  controller.setGestureMode('blink')
+  controller.setSource('running')
+  controller.setEnabled(true)
+  const sample = (t: number, closed = 0): void => {
+    time = t + 10
+    const f = testFrame(t)
+    f.blendshapes = { eyeBlinkLeft: closed, eyeBlinkRight: closed, jawOpen: 0 }
+    controller.consume(f)
+  }
+  sample(1000)
+  sample(1050)
+  expect(mock.cursor).toEqual({ x: 959.5, y: 539.5 })
+  expect(updates).toBeGreaterThan(0)
+  for (let t = 1100; t <= 1700; t += 50) sample(t, 0.9)
+  sample(1750)
+  const i = mock.calls.findIndex((c) => c.method === 'click')
+  expect(mock.calls[i - 1]).toEqual({ method: 'moveTo', args: [100, 120] })
+  expect(clicks).toBe(1)
+  sample(1800)
+  expect(mock.cursor).toEqual({ x: 959.5, y: 539.5 })
+  controller.setDragging(true)
+  expect(mock.calls.at(-2)).toEqual({ method: 'moveTo', args: [959.5, 539.5] })
+  expect(clicks).toBe(1)
+  pause.toggle()
+  expect(resets).toBeGreaterThan(0)
+  controller.dispose()
+})

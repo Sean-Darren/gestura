@@ -109,13 +109,49 @@ export const GestureConfigSchema = z
 export type GestureConfig = z.infer<typeof GestureConfigSchema>
 export const DEFAULT_GESTURE_CONFIG = GestureConfigSchema.parse({})
 
+export const SnapConfigSchema = z
+  .object({
+    radiusPx: z.number().finite().min(1).max(300).default(60),
+    switchMargin: z.number().finite().min(0).max(5).default(0.2),
+    switchMs: z.number().finite().min(100).max(1000).default(100),
+    cacheMaxAgeMs: z.number().finite().min(50).max(500).default(200),
+    refreshMs: z.number().finite().min(50).max(1000).default(100),
+    gazeWeight: z.number().finite().min(0).max(1).default(0.15),
+    rolePriors: z
+      .object({
+        button: z.number().finite().min(0).max(1).default(0),
+        link: z.number().finite().min(0).max(1).default(0.03),
+        'menu-item': z.number().finite().min(0).max(1).default(0),
+        tab: z.number().finite().min(0).max(1).default(0.02),
+        'list-item': z.number().finite().min(0).max(1).default(0.08),
+        'check-box': z.number().finite().min(0).max(1).default(0),
+        'edit-field': z.number().finite().min(0).max(1).default(0.06),
+        'spreadsheet-cell': z.number().finite().min(0).max(1).default(0.02)
+      })
+      .strict()
+      .default({
+        button: 0,
+        link: 0.03,
+        'menu-item': 0,
+        tab: 0.02,
+        'list-item': 0.08,
+        'check-box': 0,
+        'edit-field': 0.06,
+        'spreadsheet-cell': 0.02
+      })
+  })
+  .strict()
+export type SnapConfig = z.infer<typeof SnapConfigSchema>
+export const DEFAULT_SNAP_CONFIG = SnapConfigSchema.parse({})
+
 export const AppConfigSchema = z
   .object({
     network: NetworkConfigSchema.default({ allowlist: [] }),
     logging: LoggingConfigSchema.default({ enabled: false }),
     pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
     pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } }),
-    gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG)
+    gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG),
+    snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG)
   })
   .strict()
 

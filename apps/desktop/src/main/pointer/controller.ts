@@ -84,6 +84,16 @@ export class PointerController {
         >
       ): void
       reserved?(point: { x: number; y: number }): boolean
+      snapping?: {
+        update(
+          point: { x: number; y: number },
+          display: PointerDisplay,
+          gaze: Readonly<{ x: number; y: number }> | undefined,
+          frozen: boolean
+        ): void
+        click(point: { x: number; y: number }): { x: number; y: number }
+        reset(): void
+      }
       toggleListening?(): void
     }
   ) {
@@ -168,11 +178,14 @@ export class PointerController {
     if (!this.enabled || this.replay || this.options.pause.paused || !this.display) return
     if (event.kind === 'click' || event.kind === 'mouseDown') {
       if (this.options.reserved?.(event)) return
-      const point = toNativePoint(event.x, event.y, this.display)
+      const destination =
+        event.kind === 'click' ? (this.options.snapping?.click(event) ?? event) : event
+      if (this.options.reserved?.(destination)) return
+      const point = toNativePoint(destination.x, destination.y, this.display)
       if (!this.options.bridge.moveTo(point.x, point.y)) return
       if (event.kind === 'click') {
         if (this.options.bridge.click(event.button))
-          this.lastClick = { x: event.x, y: event.y, button: event.button, t: event.t }
+          this.lastClick = { x: destination.x, y: destination.y, button: event.button, t: event.t }
       } else this.options.bridge.mouseDown('left')
     }
     if (event.kind === 'toggleListening') this.options.toggleListening?.()
@@ -180,6 +193,14 @@ export class PointerController {
   }
   private feedback(frozen: boolean, dwellProgress: number, message = ''): void {
     if (message) this.gestureMessage = message
+    if (
+      this.lastPoint &&
+      this.display &&
+      this.enabled &&
+      !this.replay &&
+      !this.options.pause.paused
+    )
+      this.options.snapping?.update(this.lastPoint, this.display, this.pipeline?.gazePoint, frozen)
     this.options.feedback?.({
       mode: this.gestureConfig.mode,
       cursor: this.lastPoint ?? null,
@@ -201,6 +222,7 @@ export class PointerController {
           this.lastClick = null
         }
       }
+    this.options.snapping?.reset()
     this.lastPoint = undefined
     this.lastMoveCapture = undefined
     this.speed = 0

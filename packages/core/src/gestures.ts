@@ -1,3 +1,4 @@
+import { SnapBoundsSchema } from './snap'
 import { z } from 'zod'
 const finite = z.number().finite()
 const point = { x: finite, y: finite, t: finite.nonnegative() }
@@ -33,6 +34,7 @@ export type EarBaseline = z.infer<typeof EarBaselineSchema>
 export const GestureControlSchema = z.object({ mode: z.enum(['off', 'blink', 'dwell']) }).strict()
 export const OverlayStateSchema = z
   .object({
+    snap: SnapBoundsSchema.nullable().default(null),
     mode: z.enum(['off', 'blink', 'dwell']),
     paused: z.boolean(),
     frozen: z.boolean(),

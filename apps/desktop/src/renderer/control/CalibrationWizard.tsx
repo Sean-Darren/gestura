@@ -1,3 +1,4 @@
+import { SnapSettings } from './SnapSettings'
 import { PointingBench } from './PointingBench'
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
@@ -109,6 +110,7 @@ export function CalibrationControl(): JSX.Element {
             <DwellButton onClick={() => command('clear-log')}>Clear local duration log</DwellButton>
             <p role="status">{state.message}</p>
           </section>
+          <SnapSettings />
           <DebugPanel gazeEnabled={state.gazeEnabled} />
         </div>
       </>

@@ -463,3 +463,37 @@ main {
     padding: 12px;
   }
 }
+.snap-highlight {
+  position: fixed;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 3px solid #24563d;
+  outline: 2px solid white;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px #17211d;
+}
+.snap-settings {
+  padding: 16px 24px;
+}
+.snap-settings ul {
+  list-style: none;
+  padding: 0;
+}
+.snap-settings li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.snap-settings li p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.snap-app-id {
+  overflow-wrap: anywhere;
+}
+.snap-settings button {
+  min-height: 52px;
+  min-width: 48px;
+}

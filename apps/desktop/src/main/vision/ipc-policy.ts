@@ -9,6 +9,7 @@ export function acceptsRendererChannel(role: RendererRole, channel: IpcChannel):
     )
   if (role === 'control')
     return (
+      channel === 'snap:control' ||
       channel === 'bench:control' ||
       channel === 'vision:control' ||
       channel === 'replay:control' ||

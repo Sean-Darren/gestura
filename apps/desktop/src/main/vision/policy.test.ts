@@ -101,3 +101,10 @@ it('accepts benchmark commands only from control and never renderer feedback', (
   expect(acceptsRendererChannel('overlay', 'bench:control')).toBe(false)
   expect(acceptsRendererChannel('control', 'bench:state')).toBe(false)
 })
+
+it('accepts per-app snapping controls only from control', () => {
+  expect(acceptsRendererChannel('control', 'snap:control')).toBe(true)
+  expect(acceptsRendererChannel('overlay', 'snap:control')).toBe(false)
+  expect(acceptsRendererChannel('vision', 'snap:control')).toBe(false)
+  expect(acceptsRendererChannel('control', 'snap:settings')).toBe(false)
+})

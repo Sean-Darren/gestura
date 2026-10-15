@@ -1,4 +1,4 @@
-import type { CalibrationProfile, FaceFrame, OverlayState } from '@gestura/core'
+import type { CalibrationProfile, FaceFrame, OverlayState, SnapBounds } from '@gestura/core'
 import { DEFAULT_GESTURE_CONFIG, DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
 import { CornerDwell } from '@gestura/gestures'
@@ -36,6 +36,7 @@ export class OverlayController {
   ) {
     const d = options.display()
     this.state = {
+      snap: null,
       mode: 'off',
       paused: options.pause.paused,
       frozen: false,
@@ -50,6 +51,7 @@ export class OverlayController {
     }
     this.unsubscribe = options.pause.subscribe((paused) => {
       this.state.paused = paused
+      this.state.snap = null
       this.state.frozen = false
       this.state.dwellProgress = 0
       this.state.pauseProgress = 0
@@ -106,6 +108,18 @@ export class OverlayController {
       this.lastPoint = this.state.cursor
       this.corner(this.headCorner, this.state.cursor!, this.options.now())
     }
+    this.emit()
+  }
+  setSnap(bounds: SnapBounds | null): void {
+    const scale = this.options.display().scaleFactor
+    this.state.snap = bounds
+      ? {
+          x: bounds.x / scale,
+          y: bounds.y / scale,
+          width: bounds.width / scale,
+          height: bounds.height / scale
+        }
+      : null
     this.emit()
   }
   calibration(point: { x: number; y: number } | null): void {

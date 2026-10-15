@@ -1,3 +1,4 @@
+import { bundledUiCoverage } from './build/ui-coverage'
 import { developmentCsp } from './build/dev-csp'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,6 +11,7 @@ const appRoot = fileURLToPath(new URL('.', import.meta.url))
 export default defineConfig({
   main: {
     plugins: [
+      bundledUiCoverage(resolve(appRoot, '../../docs/decisions/0003-ui-element-coverage.md')),
       {
         name: 'gestura-local-vision-assets',
         buildStart: async () => {
