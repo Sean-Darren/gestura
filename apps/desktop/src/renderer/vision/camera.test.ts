@@ -17,10 +17,12 @@ function fake(): {
   video: HTMLVideoElement
   statuses: VisionStatus[]
   tick: () => void
+  delays: number[]
 } {
   const stop = vi.fn(),
     close = vi.fn(),
     statuses: VisionStatus[] = []
+  const delays: number[] = []
   let callback: (() => void) | undefined
   const video = {
     currentTime: 1,
@@ -37,14 +39,15 @@ function fake(): {
     landmarker: vi.fn().mockResolvedValue({ detectForVideo: () => empty, close }),
     video: () => video,
     now: () => 100,
-    schedule: (cb) => {
+    schedule: (cb, delay) => {
+      delays.push(delay)
       callback = cb
       return () => {
         callback = undefined
       }
     }
   }
-  return { deps, stop, close, video, statuses, tick: () => callback?.() }
+  return { deps, stop, close, video, statuses, delays, tick: () => callback?.() }
 }
 describe('local face capture', () => {
   it('publishes scalar lighting summaries locally and never pixels', async () => {
@@ -88,22 +91,30 @@ describe('local face capture', () => {
     expect(fakeCamera.stop).toHaveBeenCalledOnce()
     expect(fakeCamera.close).toHaveBeenCalledOnce()
   })
-  it('stops camera/inference on pause and resumes only when tracking was requested', async () => {
+  it('keeps only reduced-rate local inference on pause; Stop releases camera and model', async () => {
     const f = fake(),
-      listener = vi.fn(),
-      source = new CameraSource((status) => f.statuses.push(status), f.deps)
+      listener = vi.fn()
+    const source = new CameraSource((status) => f.statuses.push(status), f.deps)
     source.subscribe(listener)
     await source.start()
     source.setPaused(true)
+    f.video.currentTime = 2
     f.tick()
-    expect(listener).toHaveBeenCalledOnce()
-    expect(f.stop).toHaveBeenCalledOnce()
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(f.delays.at(-1)).toBe(200)
+    expect(f.stop).not.toHaveBeenCalled()
+    expect(f.statuses.at(-1)?.state).toBe('paused')
     source.setPaused(false)
-    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(2))
+    f.video.currentTime = 3
+    f.tick()
+    expect(f.delays.at(-1)).toBeLessThan(34)
+    expect(f.deps.media).toHaveBeenCalledOnce()
     source.stop()
     source.setPaused(true)
     source.setPaused(false)
-    expect(f.deps.media).toHaveBeenCalledTimes(2)
+    expect(f.stop).toHaveBeenCalledOnce()
+    expect(f.close).toHaveBeenCalledOnce()
+    expect(f.deps.media).toHaveBeenCalledOnce()
   })
   it('cleans up an asynchronous stream acquired after stop', async () => {
     const f = fake()

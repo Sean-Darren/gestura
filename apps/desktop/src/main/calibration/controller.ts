@@ -1,3 +1,4 @@
+import { eyeAspectRatios } from '@gestura/gestures'
 import { CalibrationProfileSchema, CalibrationStateSchema } from '@gestura/core'
 import type {
   CalibrationProfile,
@@ -11,6 +12,7 @@ import { CalibrationWizard, PointerPipeline, headPose, irisFeatures } from '@ges
 import type { PauseController } from '../pause'
 import type { CalibrationStore } from './store'
 export class CalibrationController {
+  aspectRatio = 16 / 9
   private wizard: CalibrationWizard | undefined
   private virtual: PointerPipeline | undefined
   private stageKey = ''
@@ -172,7 +174,9 @@ export class CalibrationController {
       minY > 0.02 &&
       maxY < 0.98
     if (now - this.diagnosticsTime > 1500) this.lighting = 'unknown'
+    const ear = eyeAspectRatios(frame, this.aspectRatio)
     w.observe({
+      ...(ear ? { ear: { ...ear, aspectRatio: this.aspectRatio } } : {}),
       t: now,
       pose,
       centered: this.centered,

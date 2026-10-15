@@ -1,3 +1,4 @@
+import { DEFAULT_GESTURE_CONFIG } from './index'
 import { describe, expect, it } from 'vitest'
 import {
   AppConfigSchema,
@@ -37,7 +38,8 @@ describe('app config', () => {
       network: { allowlist: [] },
       logging: { enabled: false },
       pointer: DEFAULT_POINTER_CONFIG,
-      pointerProfile: { neutral: { yaw: 0, pitch: 0 } }
+      pointerProfile: { neutral: { yaw: 0, pitch: 0 } },
+      gestures: DEFAULT_GESTURE_CONFIG
     })
   })
 

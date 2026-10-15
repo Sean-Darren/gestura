@@ -1,3 +1,4 @@
+import { EarBaselineSchema } from './gestures'
 import { z } from 'zod'
 import { PoseSchema } from './pointer'
 import { PointerConfigSchema } from './config'
@@ -33,6 +34,7 @@ export const CalibrationProfileSchema = z
     gaze: z.object({ enabled: z.boolean(), mapping: GazeMappingSchema.nullable() }).strict(),
     blink: z
       .object({
+        ear: EarBaselineSchema.optional(),
         closedScore: finite.min(0.2).max(0.95),
         openScore: finite.min(0).max(0.9),
         minLongBlinkMs: finite.min(200).max(3000),

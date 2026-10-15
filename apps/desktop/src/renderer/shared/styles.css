@@ -302,3 +302,67 @@ main {
     min-width: 48px;
   }
 }
+.gesture-overlay {
+  pointer-events: none;
+}
+.pause-corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: 2px solid #17211d;
+  color: #f4f6f3;
+  background: #24563d;
+  font: 14px system-ui;
+  padding: 6px;
+}
+.pause-corner progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #f4f6f3;
+}
+.pause-corner:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -5px;
+}
+.pause-note {
+  position: fixed;
+  top: 80px;
+  right: 12px;
+  max-width: 300px;
+  color: #17211d;
+  background: #f4f6f3;
+  padding: 12px;
+  font: 14px/1.4 system-ui;
+  border: 1px solid #17211d;
+}
+.gesture-pointer,
+.gesture-click {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.gesture-pointer {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #17211d;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white;
+}
+.gesture-pointer svg {
+  width: 100%;
+  height: 100%;
+}
+.gesture-pointer.frozen {
+  border-style: dashed;
+}
+.gesture-click {
+  width: 52px;
+  height: 52px;
+  border: 4px solid #24563d;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px white,
+    0 0 0 5px #17211d;
+}

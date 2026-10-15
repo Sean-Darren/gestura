@@ -202,6 +202,9 @@ importers:
       '@gestura/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gestura/gestures':
+        specifier: workspace:*
+        version: link:../../packages/gestures
       '@gestura/native':
         specifier: workspace:*
         version: link:../../native/gestura-native
@@ -261,7 +264,11 @@ importers:
 
   packages/genai: {}
 
-  packages/gestures: {}
+  packages/gestures:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/intent: {}
 

@@ -1,3 +1,4 @@
+import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import { DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -28,7 +29,8 @@ describe('local app config', () => {
       network: { allowlist: ['api.example.com'] },
       logging: { enabled: true },
       pointer: DEFAULT_POINTER_CONFIG,
-      pointerProfile: { neutral: { yaw: 0, pitch: 0 } }
+      pointerProfile: { neutral: { yaw: 0, pitch: 0 } },
+      gestures: DEFAULT_GESTURE_CONFIG
     })
   })
 

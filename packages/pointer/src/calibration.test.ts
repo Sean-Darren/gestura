@@ -130,3 +130,20 @@ describe('calibration state machine', () => {
     expect(s.wizard.index).toBe(0)
   })
 })
+
+it('stores the median open-eye EAR baseline from neutral and remains compatible without one', () => {
+  const s = scriptedWizard(false, { left: 0.31, right: 0.33, aspectRatio: 16 / 9 })
+  completeBlinkPhase(s)
+  completeTargets(s)
+  expect(s.wizard.profile(s.time()).blink.ear).toEqual({
+    left: 0.31,
+    right: 0.33,
+    aspectRatio: 16 / 9,
+    closedRatio: 0.45,
+    openRatio: 0.75
+  })
+  const legacy = scriptedWizard()
+  completeBlinkPhase(legacy)
+  completeTargets(legacy)
+  expect(legacy.wizard.profile(legacy.time()).blink.ear).toBeUndefined()
+})

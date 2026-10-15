@@ -64,19 +64,6 @@ export const PointerConfigSchema = z
 export type PointerConfig = z.infer<typeof PointerConfigSchema>
 export const DEFAULT_POINTER_CONFIG = PointerConfigSchema.parse({})
 
-export const AppConfigSchema = z
-  .object({
-    network: NetworkConfigSchema.default({ allowlist: [] }),
-    logging: LoggingConfigSchema.default({ enabled: false }),
-    pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
-    pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } })
-  })
-  .strict()
-
-export type AppConfig = z.infer<typeof AppConfigSchema>
-
-export const DEFAULT_CONFIG = AppConfigSchema.parse({})
-
 export const CalibrationConfigSchema = z
   .object({
     neutralMs: z.literal(3000).default(3000),
@@ -93,3 +80,45 @@ export const CalibrationConfigSchema = z
   })
   .strict()
 export const DEFAULT_CALIBRATION_CONFIG = CalibrationConfigSchema.parse({})
+
+export const GestureConfigSchema = z
+  .object({
+    mode: z.enum(['off', 'blink', 'dwell']).default('off'),
+    maxLongBlinkMs: z.number().finite().min(400).max(5000).default(1500),
+    winkMinMs: z.number().finite().min(250).max(2000).default(250),
+    onsetSyncMs: z.number().finite().min(0).max(200).default(80),
+    dwellRadiusPx: z.number().finite().min(1).max(100).default(24),
+    dwellMs: z.number().finite().min(500).max(5000).default(1000),
+    maxSpeedPxS: z.number().finite().positive().default(500),
+    cooldownMs: z.number().finite().min(200).max(3000).default(500),
+    jawHoldMs: z.number().finite().min(800).max(3000).default(800),
+    jawOpenScore: z.number().min(0.3).max(1).default(0.6),
+    jawCloseScore: z.number().min(0).max(0.5).default(0.3),
+    staleMs: z.number().finite().min(50).max(1000).default(250),
+    earClosedRatio: z.number().min(0.1).max(0.7).default(0.45),
+    earOpenRatio: z.number().min(0.4).max(1).default(0.75),
+    pauseDwellMs: z.number().finite().min(500).max(3000).default(1200),
+    pauseTargetSize: z.number().finite().min(48).max(160).default(72),
+    pauseInferenceFps: z.number().int().min(5).max(15).default(5)
+  })
+  .strict()
+  .refine(
+    (v) => v.jawOpenScore > v.jawCloseScore && v.earOpenRatio > v.earClosedRatio,
+    'Invalid gesture hysteresis'
+  )
+export type GestureConfig = z.infer<typeof GestureConfigSchema>
+export const DEFAULT_GESTURE_CONFIG = GestureConfigSchema.parse({})
+
+export const AppConfigSchema = z
+  .object({
+    network: NetworkConfigSchema.default({ allowlist: [] }),
+    logging: LoggingConfigSchema.default({ enabled: false }),
+    pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
+    pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } }),
+    gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG)
+  })
+  .strict()
+
+export type AppConfig = z.infer<typeof AppConfigSchema>
+
+export const DEFAULT_CONFIG = AppConfigSchema.parse({})

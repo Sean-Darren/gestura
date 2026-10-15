@@ -26,7 +26,13 @@ export default defineConfig({
         }
       },
       externalizeDeps: {
-        exclude: ['@gestura/core', '@gestura/replay', '@gestura/pointer', 'zod']
+        exclude: [
+          '@gestura/core',
+          '@gestura/replay',
+          '@gestura/pointer',
+          '@gestura/gestures',
+          'zod'
+        ]
       }
     }
   },

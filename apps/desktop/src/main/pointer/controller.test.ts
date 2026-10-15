@@ -1,3 +1,8 @@
+import {
+  scriptedWizard,
+  completeBlinkPhase,
+  completeTargets
+} from '../../../../../packages/pointer/src/calibration-fixture'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import { PointerController, toNativePoint } from './controller'
@@ -199,5 +204,64 @@ describe('pointer dispatch', () => {
     controller.setEnabled(true)
     controller.consume(testFrame(980))
     expect(mock.calls.filter((c) => c.method === 'moveTo')).toHaveLength(0)
+  })
+})
+
+describe('gesture native dispatch', () => {
+  function calibrated(): ReturnType<typeof setup> & {
+    sample(t: number, left?: number, right?: number, yaw?: number): void
+  } {
+    const s = setup(),
+      session = scriptedWizard()
+    completeBlinkPhase(session)
+    completeTargets(session)
+    s.controller.applyCalibration(session.wizard.profile(session.time()))
+    s.controller.setGestureMode('blink')
+    s.controller.setSource('running')
+    s.controller.setEnabled(true)
+    function sample(t: number, left = 0, right = left, yaw = 0): void {
+      s.setTime(t + 10)
+      const f = testFrame(t, yaw)
+      f.blendshapes = { eyeBlinkLeft: left, eyeBlinkRight: right, jawOpen: 0 }
+      s.controller.consume(f)
+    }
+    sample(1000)
+    sample(1050)
+    return { ...s, sample }
+  }
+  it('freezes all moves while closed and clicks the frozen position before resuming', () => {
+    const s = calibrated(),
+      frozen = { ...s.mock.cursor }
+    const moves = s.mock.calls.filter((c) => c.method === 'moveTo').length
+    for (let t = 1100; t <= 1700; t += 50) s.sample(t, 0.9, 0.9, 15)
+    expect(s.mock.calls.filter((c) => c.method === 'moveTo')).toHaveLength(moves)
+    s.sample(1750)
+    const click = s.mock.calls.findIndex((c) => c.method === 'click')
+    expect(click).toBeGreaterThan(0)
+    expect(s.mock.calls[click - 1]).toEqual({ method: 'moveTo', args: [frozen.x, frozen.y] })
+    expect(s.mock.calls[click]?.args).toEqual(['left'])
+  })
+  it('releases drag on pause and never dispatches a paused click or move', () => {
+    const s = calibrated()
+    s.controller.setDragging(true)
+    expect(s.mock.calls.at(-1)?.method).toBe('mouseDown')
+    s.pause.toggle()
+    expect(s.mock.calls.at(-1)?.method).toBe('mouseUp')
+    const count = s.mock.calls.length
+    for (let t = 1100; t <= 1900; t += 50) s.sample(t, t < 1800 ? 0.9 : 0)
+    expect(s.mock.calls).toHaveLength(count)
+  })
+  it('releases drag on face loss and disables gestures during replay', () => {
+    const s = calibrated()
+    s.controller.setDragging(true)
+    s.setTime(1110)
+    const lost = testFrame(1100)
+    lost.faceDetected = false
+    s.controller.consume(lost)
+    expect(s.mock.calls.at(-1)?.method).toBe('mouseUp')
+    s.controller.setSource('replaying')
+    const count = s.mock.calls.length
+    for (let t = 1200; t <= 2200; t += 50) s.sample(t, t < 2000 ? 0.9 : 0)
+    expect(s.mock.calls).toHaveLength(count)
   })
 })

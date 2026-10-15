@@ -1,3 +1,4 @@
+import { OverlayController } from './gestures/overlay'
 import { CalibrationController } from './calibration/controller'
 import { CalibrationStore } from './calibration/store'
 import { PointerController } from './pointer/controller'
@@ -39,6 +40,7 @@ let visionReady = false
 let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
 let pointerController: PointerController | undefined
+let gestureOverlay: OverlayController | undefined
 let calibrationController: CalibrationController | undefined
 let calibrationWindowBounds: ReturnType<BrowserWindow['getBounds']> | undefined
 let unsubscribePointer: (() => void) | undefined
@@ -208,11 +210,24 @@ function registerIpc(): void {
         return
       }
       if (envelope.channel === 'vision:frame') {
+        if (pause.paused) {
+          gestureOverlay?.pausedFrame(envelope.payload)
+          return
+        }
         visionController?.receive(envelope.payload)
         return
       }
       if (envelope.channel === 'vision:status') {
         visionController?.receiveStatus(envelope.payload)
+        return
+      }
+      if (envelope.channel === 'gestures:control') {
+        if (!calibrationController?.state.active)
+          pointerController?.setGestureMode(envelope.payload.mode)
+        return
+      }
+      if (envelope.channel === 'system:toggle-pause') {
+        pause.toggle()
         return
       }
       if (envelope.channel === 'pointer:control') {
@@ -239,6 +254,11 @@ function registerIpc(): void {
         return
       }
       if (envelope.channel === 'app:ready') {
+        if (gestureOverlay && (role === 'control' || role === 'overlay'))
+          event.sender.send(
+            'gestura:ipc',
+            createIpcEnvelope('gestures:state', gestureOverlay.snapshot)
+          )
         if (role === 'control') {
           calibrationController?.firstRun()
           if (calibrationController)
@@ -368,6 +388,10 @@ app.whenReady().then(async () => {
     },
     status: (value) => {
       if (value.state === 'error') calibrationController?.fail(value.message)
+      if (value.width && value.height) {
+        if (pointerController) pointerController.aspectRatio = value.width / value.height
+        if (calibrationController) calibrationController.aspectRatio = value.width / value.height
+      }
       pointerController?.setSource(value.state)
       currentVisionStatus = value
       sendControl('vision:status', value)
@@ -396,15 +420,37 @@ app.whenReady().then(async () => {
         : loadRecording(selection.filePaths[0])
     }
   })
+  gestureOverlay = new OverlayController({
+    config: config.gestures,
+    pause,
+    now: () => performance.timeOrigin + performance.now(),
+    display: () => {
+      const d = screen.getPrimaryDisplay()
+      return { width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor }
+    },
+    tracking: () => visionCommand === 'start',
+    systemPoint: () => screen.getCursorScreenPoint(),
+    publish: (state) => {
+      for (const window of [controlWindow, overlayWindow])
+        if (window && !window.isDestroyed())
+          window.webContents.send('gestura:ipc', createIpcEnvelope('gestures:state', state))
+    }
+  })
   pointerController = new PointerController({
     bridge: nativeInput,
     pause,
     config: config.pointer,
+    gestures: config.gestures,
+    feedback: (state) => gestureOverlay?.feedback(state),
+    reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false,
     profile: config.pointerProfile,
     now: () => performance.timeOrigin + performance.now(),
     publish: (value) => sendControl('pointer:metrics', value)
   })
-  if (calibrationProfile) pointerController.applyCalibration(calibrationProfile)
+  if (calibrationProfile) {
+    pointerController.applyCalibration(calibrationProfile)
+    gestureOverlay.applyProfile(calibrationProfile)
+  }
   calibrationController = new CalibrationController({
     profile: calibrationProfile,
     store: calibrationStore,
@@ -419,10 +465,14 @@ app.whenReady().then(async () => {
         scaleFactor: display.scaleFactor
       }
     },
-    publish: (state) => sendControl('calibration:state', state),
+    publish: (state) => {
+      if (state.active) gestureOverlay?.calibration(state.cursor)
+      sendControl('calibration:state', state)
+    },
     apply: (profile) => {
       const enabled = pointerController?.metrics.enabled
       pointerController?.applyCalibration(profile)
+      gestureOverlay?.applyProfile(profile)
       if (enabled) pointerController?.setEnabled(true)
     },
     activate: () => pointerController?.setEnabled(true),
@@ -470,6 +520,7 @@ app.whenReady().then(async () => {
     visionController?.tick()
     pointerController?.tick()
     calibrationController?.tick()
+    gestureOverlay?.tick()
   }, 100)
   registerPauseHotkey()
   registerIpc()
@@ -487,6 +538,7 @@ app.on('before-quit', () => {
   clearInterval(recorderTimer)
   unsubscribePointer?.()
   pointerController?.dispose()
+  gestureOverlay?.dispose()
   calibrationController?.dispose()
   visionController?.dispose()
   nativeInput.dispose()

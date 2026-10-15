@@ -84,3 +84,13 @@ it('limits calibration commands to control and diagnostics to vision', () => {
   expect(acceptsRendererChannel('control', 'vision:diagnostics')).toBe(false)
   expect(acceptsRendererChannel('control', 'calibration:state')).toBe(false)
 })
+
+it('restricts gesture mode controls and permits pause from control or overlay only', () => {
+  expect(acceptsRendererChannel('control', 'gestures:control')).toBe(true)
+  expect(acceptsRendererChannel('overlay', 'gestures:control')).toBe(false)
+  expect(acceptsRendererChannel('vision', 'gestures:control')).toBe(false)
+  expect(acceptsRendererChannel('control', 'system:toggle-pause')).toBe(true)
+  expect(acceptsRendererChannel('overlay', 'system:toggle-pause')).toBe(true)
+  expect(acceptsRendererChannel('vision', 'system:toggle-pause')).toBe(false)
+  expect(acceptsRendererChannel('control', 'gestures:state')).toBe(false)
+})

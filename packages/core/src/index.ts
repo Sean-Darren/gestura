@@ -1,3 +1,4 @@
+import { GestureControlSchema, OverlayStateSchema } from './gestures'
 import {
   CalibrationControlSchema,
   CalibrationStateSchema,
@@ -29,7 +30,10 @@ export const IPC_CHANNELS = [
   'pointer:metrics',
   'calibration:control',
   'calibration:state',
-  'vision:diagnostics'
+  'vision:diagnostics',
+  'gestures:control',
+  'gestures:state',
+  'system:toggle-pause'
 ] as const
 
 export const IPC_TRANSPORT_CHANNEL = 'gestura:ipc'
@@ -48,7 +52,10 @@ export const IPC_PAYLOAD_SCHEMAS = {
   'pointer:metrics': PointerMetricsSchema,
   'calibration:control': CalibrationControlSchema,
   'calibration:state': CalibrationStateSchema,
-  'vision:diagnostics': VisionDiagnosticsSchema
+  'vision:diagnostics': VisionDiagnosticsSchema,
+  'gestures:control': GestureControlSchema,
+  'gestures:state': OverlayStateSchema,
+  'system:toggle-pause': z.object({}).strict()
 } as const
 
 export const IpcEnvelopeSchema = z
@@ -102,3 +109,5 @@ export * from './face-frame'
 export * from './pointer'
 
 export * from './calibration'
+
+export * from './gestures'

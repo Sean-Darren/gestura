@@ -1,6 +1,9 @@
 import { CalibrationWizard, TEST_TARGETS } from './calibration'
 import type { CalibrationObservation } from './calibration'
-export function scriptedWizard(gaze = false): {
+export function scriptedWizard(
+  gaze = false,
+  ear?: CalibrationObservation['ear']
+): {
   wizard: CalibrationWizard
   observe(patch?: Partial<CalibrationObservation>, count?: number): void
   time(): number
@@ -12,6 +15,7 @@ export function scriptedWizard(gaze = false): {
       t += 50
       wizard.observe({
         t,
+        ...(ear ? { ear } : {}),
         pose: { yaw: 0, pitch: 0 },
         centered: true,
         lightingGood: true,

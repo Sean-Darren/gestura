@@ -1,7 +1,7 @@
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 import type { FaceLandmarkerOptions, FaceLandmarkerResult } from '@mediapipe/tasks-vision'
 import type { FaceFrame, VisionStatus } from '@gestura/core'
-import { DEFAULT_VISION_CONFIG } from '@gestura/core/config'
+import { DEFAULT_GESTURE_CONFIG, DEFAULT_VISION_CONFIG } from '@gestura/core/config'
 import { FrameBus } from '@gestura/replay'
 import type { FrameSource } from '@gestura/replay'
 import { toFaceFrame } from './convert'
@@ -92,10 +92,6 @@ export class CameraSource implements FrameSource {
   async start(): Promise<void> {
     this.release()
     this.desired = true
-    if (this.paused) {
-      this.report('paused')
-      return
-    }
     const generation = this.generation
     this.report('starting', 'Loading local model and requesting camera permission')
     let stream: MediaStream | undefined
@@ -125,11 +121,16 @@ export class CameraSource implements FrameSource {
       this.video = video
       this.settings = stream.getVideoTracks()[0]?.getSettings() ?? {}
       committed = true
-      this.report('running', 'Camera tracking is local')
+      this.report(
+        this.paused ? 'paused' : 'running',
+        this.paused
+          ? 'Paused: camera stays local for corner-dwell resume'
+          : 'Camera tracking is local'
+      )
       let previousTime = -1
       let lastLight = -Infinity
       const tick = (): void => {
-        if (generation !== this.generation || this.paused) return
+        if (generation !== this.generation) return
         const tickStart = this.dependencies.now()
         try {
           if (video.readyState >= 2 && video.currentTime !== previousTime) {
@@ -148,7 +149,11 @@ export class CameraSource implements FrameSource {
             tick,
             Math.max(
               0,
-              1000 / DEFAULT_VISION_CONFIG.frameRate - (this.dependencies.now() - tickStart)
+              1000 /
+                (this.paused
+                  ? DEFAULT_GESTURE_CONFIG.pauseInferenceFps
+                  : DEFAULT_VISION_CONFIG.frameRate) -
+                (this.dependencies.now() - tickStart)
             )
           )
         } catch (error) {
@@ -180,10 +185,11 @@ export class CameraSource implements FrameSource {
   setPaused(paused: boolean): void {
     if (paused === this.paused) return
     this.paused = paused
-    if (paused) {
-      this.release()
-      this.report(this.desired ? 'paused' : 'stopped')
-    } else if (this.desired) void this.start()
+    if (this.desired)
+      this.report(
+        paused ? 'paused' : 'running',
+        paused ? 'Paused: camera stays local for corner-dwell resume' : 'Camera tracking is local'
+      )
   }
   private release(): void {
     this.generation++

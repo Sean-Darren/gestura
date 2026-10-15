@@ -43,6 +43,15 @@ export class PointerPipeline {
     this.offset = { x: 0, y: 0 }
     this.cursor = undefined
   }
+  hold(tCapture: number): void {
+    if (!Number.isFinite(tCapture) || tCapture <= this.lastCapture) return
+    this.lastCapture = tCapture
+    if (this.cursor) {
+      this.x.filter(this.cursor.x, tCapture)
+      this.y.filter(this.cursor.y, tCapture)
+    }
+    this.gaze.reset()
+  }
   process(frame: FaceFrame, tPointerDone: number): CursorCommand | undefined {
     if (frame.tCapture <= this.lastCapture) return undefined
     if (!frame.faceDetected) {

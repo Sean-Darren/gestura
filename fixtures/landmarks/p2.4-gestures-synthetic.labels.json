@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "sessionStart": 0,
+  "sessionEnd": 52200,
+  "prompts": [
+    {
+      "prompt": "Deliberate long blink",
+      "start": 0,
+      "end": 1900
+    },
+    {
+      "prompt": "Deliberate long blink",
+      "start": 1900,
+      "end": 4000
+    },
+    {
+      "prompt": "Deliberate long blink",
+      "start": 4000,
+      "end": 6300
+    },
+    {
+      "prompt": "Deliberate long blink",
+      "start": 6300,
+      "end": 8800
+    },
+    {
+      "prompt": "Deliberate long blink",
+      "start": 8800,
+      "end": 11800
+    },
+    {
+      "prompt": "Wink left",
+      "start": 11800,
+      "end": 13550
+    },
+    {
+      "prompt": "Wink left",
+      "start": 13550,
+      "end": 15400
+    },
+    {
+      "prompt": "Wink left",
+      "start": 15400,
+      "end": 17400
+    },
+    {
+      "prompt": "Wink left",
+      "start": 17400,
+      "end": 19700
+    },
+    {
+      "prompt": "Wink left",
+      "start": 19700,
+      "end": 22200
+    },
+    {
+      "prompt": "Natural blinking",
+      "start": 22200,
+      "end": 32200
+    },
+    {
+      "prompt": "Reading silently",
+      "start": 32200,
+      "end": 42200
+    },
+    {
+      "prompt": "Reading aloud / talking",
+      "start": 42200,
+      "end": 52200
+    }
+  ]
+}

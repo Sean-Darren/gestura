@@ -8,19 +8,30 @@ export function DwellButton({
   children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>): JSX.Element {
+  const [gestureDwell, setGestureDwell] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const cancel = (): void => {
     clearTimeout(timer.current)
     timer.current = undefined
   }
-  useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => {
+    const off = window.gestura.on('gestures:state', (state) => {
+      const active = state.mode !== 'off'
+      setGestureDwell(active)
+      if (active) clearTimeout(timer.current)
+    })
+    return () => {
+      off()
+      clearTimeout(timer.current)
+    }
+  }, [])
   return (
     <button
       {...props}
       disabled={disabled}
       onPointerEnter={(event) => {
         cancel()
-        if (!disabled) {
+        if (!disabled && !gestureDwell) {
           const target = event.currentTarget
           timer.current = setTimeout(() => {
             target.click()
@@ -50,6 +61,8 @@ const emptyMetrics: VisionMetrics = {
   jawOpen: 0
 }
 export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): JSX.Element {
+  const [gestureMode, setGestureMode] = useState<'off' | 'blink' | 'dwell'>('off')
+  const [gestureMessage, setGestureMessage] = useState('Click gestures are off')
   const [status, setStatus] = useState<VisionStatus>({
     state: 'stopped',
     message: 'Start tracking to measure this camera',
@@ -81,6 +94,10 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
   useEffect(() => {
     const subscriptions = [
       window.gestura.on('pointer:metrics', setPointer),
+      window.gestura.on('gestures:state', (state) => {
+        setGestureMode(state.mode)
+        setGestureMessage(state.message)
+      }),
       window.gestura.on('vision:status', setStatus),
       window.gestura.on('vision:metrics', setMetrics),
       window.gestura.on('replay:prompt', setPrompt),
@@ -122,8 +139,8 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
           </DwellButton>
         </div>
         <p className="hint">
-          Pause anytime: Ctrl+Option+P on macOS or Ctrl+Alt+P on Windows. Buttons also activate
-          after one second of pointer dwell.
+          Pause anytime: Ctrl+Option+P on macOS or Ctrl+Alt+P on Windows. With click gestures off,
+          buttons also activate after one second of pointer dwell.
         </p>
         {status.width > 0 && (
           <p>
@@ -195,6 +212,36 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
             : 'Gaze jumps are off; enable them after gaze calibration.'}{' '}
           Replay previews never move the cursor. Timing ends when movement is sent, before OS
           delivery.
+        </p>
+      </section>
+      <section aria-labelledby="gestures-heading">
+        <h2 id="gestures-heading">Click gestures</h2>
+        <p role="status">
+          {gestureMode} mode. {gestureMessage}
+        </p>
+        <div className="controls">
+          {(['off', 'blink', 'dwell'] as const).map((mode) => (
+            <DwellButton
+              key={mode}
+              aria-pressed={gestureMode === mode}
+              disabled={paused}
+              onClick={() => window.gestura.send('gestures:control', { mode })}
+            >
+              {mode === 'off'
+                ? 'Disable clicks'
+                : mode === 'blink'
+                  ? 'Use blink / left wink'
+                  : 'Use dwell clicks'}
+            </DwellButton>
+          ))}
+          <DwellButton onClick={() => window.gestura.send('system:toggle-pause', {})}>
+            {paused ? 'Resume input' : 'Pause input'}
+          </DwellButton>
+        </div>
+        <p className="hint">
+          Calibrate first. Long blink = left click; left wink = right click. Natural blinks do not
+          click. Jaw listening awaits speech-state gating in Phase 3. Camera stays on during pause
+          for corner-dwell resume; Stop Tracking turns it off.
         </p>
       </section>
       <section aria-labelledby="scores-heading">

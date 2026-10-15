@@ -1,3 +1,9 @@
+import { GestureEngine } from '@gestura/gestures'
+import type { SpeechState } from '@gestura/gestures'
+import type { GestureEvent, OverlayState } from '@gestura/core'
+import { GestureEventSchema } from '@gestura/core'
+import { DEFAULT_GESTURE_CONFIG, GestureConfigSchema } from '@gestura/core/config'
+import type { GestureConfig } from '@gestura/core/config'
 import {
   CalibrationProfileSchema,
   CursorCommandSchema,
@@ -27,6 +33,16 @@ export function toNativePoint(
 }
 export class PointerController {
   private pipeline: PointerPipeline | undefined
+  private gesture: GestureEngine | undefined
+  private gestureConfig: GestureConfig = DEFAULT_GESTURE_CONFIG
+  private lastPoint: { x: number; y: number } | undefined
+  private lastMoveCapture: number | undefined
+  private speed = 0
+  private lastClick: OverlayState['click'] = null
+  private dwellProgress = 0
+  private gestureMessage = ''
+  private speech: SpeechState = 'unknown'
+  aspectRatio = 16 / 9
   private display: PointerDisplay | undefined
   private disposed = false
   private enabled = false
@@ -59,8 +75,18 @@ export class PointerController {
       publish(metrics: PointerMetrics): void
       config?: PointerConfig
       profile?: PointerProfile
+      gestures?: GestureConfig
+      feedback?(
+        state: Pick<
+          OverlayState,
+          'mode' | 'cursor' | 'frozen' | 'dwellProgress' | 'click' | 'message'
+        >
+      ): void
+      reserved?(point: { x: number; y: number }): boolean
+      toggleListening?(): void
     }
   ) {
+    this.gestureConfig = GestureConfigSchema.parse(options.gestures ?? DEFAULT_GESTURE_CONFIG)
     // Live gaze remains unavailable until the calibration step supplies a validated profile.
     this.config = {
       ...PointerConfigSchema.parse(options.config ?? DEFAULT_POINTER_CONFIG),
@@ -82,11 +108,104 @@ export class PointerController {
     this.setEnabled(false)
     this.calibration = CalibrationProfileSchema.parse(value)
     this.config = { ...this.calibration.pointer, gazeEnabled: this.calibration.gaze.enabled }
+    this.setGestureMode(this.gestureConfig.mode)
+  }
+  setGestureMode(mode: 'off' | 'blink' | 'dwell'): void {
+    this.reset()
+    if (mode !== 'off' && !this.calibration) {
+      this.gestureConfig = { ...this.gestureConfig, mode: 'off' }
+      this.gesture = undefined
+      this.feedback(false, 0, 'Calibrate before enabling click gestures')
+      return
+    }
+    if (
+      mode === 'blink' &&
+      this.calibration!.blink.minLongBlinkMs > this.gestureConfig.maxLongBlinkMs
+    ) {
+      this.gestureConfig = { ...this.gestureConfig, mode: 'off' }
+      this.gesture = undefined
+      this.feedback(
+        false,
+        0,
+        'Calibrated blink minimum exceeds the maximum; recalibrate or adjust timing'
+      )
+      return
+    }
+    this.gestureConfig = GestureConfigSchema.parse({ ...this.gestureConfig, mode })
+    this.gesture = this.calibration
+      ? new GestureEngine(this.calibration.blink, this.gestureConfig)
+      : undefined
+    this.feedback(
+      false,
+      0,
+      mode === 'off'
+        ? 'Click gestures are off'
+        : `${mode} click mode; jaw listening awaits Phase 3 speech state`
+    )
+  }
+  setSpeechState(state: SpeechState): void {
+    this.speech = state
+  }
+  setDragging(active: boolean): void {
+    if (
+      !this.enabled ||
+      this.replay ||
+      this.options.pause.paused ||
+      !this.lastPoint ||
+      !this.gesture
+    )
+      return
+    for (const event of this.gesture.setDragging(active, this.lastPoint, this.options.now()))
+      this.dispatchGesture(event)
+  }
+  private dispatchGesture(value: GestureEvent): void {
+    const event = GestureEventSchema.parse(value)
+    if (event.kind === 'mouseUp') {
+      this.options.bridge.mouseUp('left')
+      return
+    }
+    if (!this.enabled || this.replay || this.options.pause.paused || !this.display) return
+    if (event.kind === 'click' || event.kind === 'mouseDown') {
+      if (this.options.reserved?.(event)) return
+      const point = toNativePoint(event.x, event.y, this.display)
+      if (!this.options.bridge.moveTo(point.x, point.y)) return
+      if (event.kind === 'click') {
+        if (this.options.bridge.click(event.button))
+          this.lastClick = { x: event.x, y: event.y, button: event.button, t: event.t }
+      } else this.options.bridge.mouseDown('left')
+    }
+    if (event.kind === 'toggleListening') this.options.toggleListening?.()
+    // toggleListening remains an internal Phase 3 event; it never confirms an ActionGate proposal.
+  }
+  private feedback(frozen: boolean, dwellProgress: number, message = ''): void {
+    if (message) this.gestureMessage = message
+    this.options.feedback?.({
+      mode: this.gestureConfig.mode,
+      cursor: this.lastPoint ?? null,
+      frozen,
+      dwellProgress,
+      click: this.lastClick,
+      message: this.gestureMessage
+    })
   }
   get metrics(): PointerMetrics {
     return this.last
   }
   private reset(): void {
+    if (this.gesture)
+      for (const event of this.gesture.reset(this.lastPoint, this.options.now())) {
+        try {
+          this.dispatchGesture(event)
+        } catch {
+          this.lastClick = null
+        }
+      }
+    this.lastPoint = undefined
+    this.lastMoveCapture = undefined
+    this.speed = 0
+    this.dwellProgress = 0
+    this.lastClick = null
+    this.feedback(false, 0)
     this.pipeline?.reset()
     this.samples.length = 0
     this.latestCapture = -Infinity
@@ -196,6 +315,40 @@ export class PointerController {
         this.publish('Face lost; no cursor movement')
       return
     }
+    if (!this.replay && this.lastPoint && this.gesture) {
+      if (this.options.reserved?.(this.lastPoint)) {
+        for (const event of this.gesture.reset(this.lastPoint, frame.tCapture)) {
+          try {
+            this.dispatchGesture(event)
+          } catch {
+            this.setEnabled(false)
+            return
+          }
+        }
+      } else {
+        const result = this.gesture.update(
+          frame,
+          this.lastPoint,
+          this.speed,
+          this.aspectRatio,
+          this.speech
+        )
+        try {
+          for (const event of result.events) this.dispatchGesture(event)
+        } catch {
+          this.setEnabled(false)
+          return
+        }
+        this.dwellProgress = result.dwellProgress
+        this.feedback(result.frozen, result.dwellProgress)
+        if (result.frozen) {
+          this.pipeline.hold(frame.tCapture)
+          this.speed = 0
+          this.lastMoveCapture = frame.tCapture
+          return
+        }
+      }
+    }
     const result = this.pipeline.process(frame, now)
     if (!result) return
     const command = CursorCommandSchema.parse({ ...result, tPointerDone: this.options.now() })
@@ -213,6 +366,14 @@ export class PointerController {
       const point = toNativePoint(command.x, command.y, this.display)
       const tMoveSent = this.options.now()
       if (!this.options.bridge.moveTo(point.x, point.y)) return
+      this.speed =
+        this.lastPoint && this.lastMoveCapture !== undefined
+          ? (Math.hypot(command.x - this.lastPoint.x, command.y - this.lastPoint.y) * 1000) /
+            Math.max(1, frame.tCapture - this.lastMoveCapture)
+          : 0
+      this.lastPoint = { x: command.x, y: command.y }
+      this.lastMoveCapture = frame.tCapture
+      this.feedback(false, this.dwellProgress)
       this.samples.push({ time: tMoveSent, latency: Math.max(0, tMoveSent - command.tCapture) })
       while (
         this.samples.length > 240 ||

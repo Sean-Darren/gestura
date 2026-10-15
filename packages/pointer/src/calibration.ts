@@ -1,6 +1,10 @@
 import { CalibrationProfileSchema } from '@gestura/core'
 import type { CalibrationProfile, CalibrationStage, GazeMapping, Pose } from '@gestura/core'
-import { DEFAULT_CALIBRATION_CONFIG, DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
+import {
+  DEFAULT_CALIBRATION_CONFIG,
+  DEFAULT_POINTER_CONFIG,
+  DEFAULT_GESTURE_CONFIG
+} from '@gestura/core/config'
 import { fitRidge } from './regression'
 import type { GazeSample } from './regression'
 import type { Point } from './pose'
@@ -16,6 +20,7 @@ export const TEST_TARGETS: readonly Point[] = [
 ]
 export const RANGE_DIRECTIONS = ['left', 'right', 'up', 'down'] as const
 export interface CalibrationObservation {
+  ear?: { left: number; right: number; aspectRatio: number }
   t: number
   pose: Pose
   centered: boolean
@@ -41,6 +46,8 @@ export class CalibrationWizard {
   private now: number
   private lastFrame: number | undefined
   private faceReady = false
+  private earSamples: { left: number; right: number; aspectRatio: number }[] = []
+  private ear: CalibrationProfile['blink']['ear']
   private poses: Pose[] = []
   private features: number[][] = []
   private gazeSamples: GazeSample[] = []
@@ -111,6 +118,10 @@ export class CalibrationWizard {
     }
   }
   private enter(stage: CalibrationStage): void {
+    if (stage === 'neutral') {
+      this.earSamples = []
+      this.ear = undefined
+    }
     this.stage = stage
     this.index = 0
     this.stepElapsed = 0
@@ -168,6 +179,7 @@ export class CalibrationWizard {
     if (['neutral', 'range', 'gaze', 'natural-blinks'].includes(this.stage)) {
       this.stepElapsed = 0
       this.poses = []
+      if (this.stage === 'neutral') this.earSamples = []
       this.features = []
       if (this.stage === 'natural-blinks') this.natural = []
     }
@@ -188,6 +200,15 @@ export class CalibrationWizard {
     }
     this.stepElapsed += dt <= 250 ? dt : 0
     if (this.stage === 'neutral') {
+      if (
+        observation.ear &&
+        observation.ear.left > 0.05 &&
+        observation.ear.right > 0.05 &&
+        left < 0.3 &&
+        right < 0.3 &&
+        this.earSamples.length < 300
+      )
+        this.earSamples.push(observation.ear)
       this.poses.push(pose)
       if (this.poses.length > 300) this.poses.shift()
       const yaws = this.poses.map((p) => p.yaw),
@@ -197,11 +218,26 @@ export class CalibrationWizard {
         quantile(pitches, 0.9) - quantile(pitches, 0.1) > 2
       ) {
         this.poses = [pose]
+        this.earSamples = []
         this.stepElapsed = 0
         this.message = 'Hold still; neutral capture restarted.'
       }
       if (this.stepElapsed >= 3000 && this.poses.length >= this.config.minSamples) {
         this.neutral = { yaw: quantile(yaws, 0.5), pitch: quantile(pitches, 0.5) }
+        if (this.earSamples.length >= this.config.minSamples)
+          this.ear = {
+            left: quantile(
+              this.earSamples.map((e) => e.left),
+              0.5
+            ),
+            right: quantile(
+              this.earSamples.map((e) => e.right),
+              0.5
+            ),
+            aspectRatio: this.earSamples[0]!.aspectRatio,
+            closedRatio: DEFAULT_GESTURE_CONFIG.earClosedRatio,
+            openRatio: DEFAULT_GESTURE_CONFIG.earOpenRatio
+          }
         this.enter('range')
       }
     } else if (this.stage === 'range') {
@@ -362,7 +398,7 @@ export class CalibrationWizard {
       range: this.range,
       pointer: { ...DEFAULT_POINTER_CONFIG, gazeEnabled: this.gazeEnabled },
       gaze: { enabled: this.gazeEnabled, mapping: this.mapping },
-      blink: this.blink,
+      blink: { ...this.blink, ...(this.ear ? { ear: this.ear } : {}) },
       display: this.display,
       quickTestHits: 5
     })
