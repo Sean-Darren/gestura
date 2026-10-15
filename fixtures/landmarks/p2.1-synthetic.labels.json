@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "sessionStart": 1000,
+  "sessionEnd": 1133.332,
+  "prompts": [
+    {
+      "prompt": "Synthetic face loss, right blink, left wink, and jaw-open samples",
+      "start": 1000,
+      "end": 1133.332
+    }
+  ]
+}

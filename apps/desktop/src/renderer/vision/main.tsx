@@ -1,13 +1,22 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { ShellApp } from '../shared/ShellApp'
-import '../shared/styles.css'
+import { serializeFaceFrame } from '@gestura/core'
+import { CameraSource } from './camera'
 
-const root = document.getElementById('root')
-if (!root) throw new Error('Vision renderer root is missing')
-
-createRoot(root).render(
-  <StrictMode>
-    <ShellApp title="Gestura Vision" />
-  </StrictMode>
+const source = new CameraSource(
+  (status) => window.gestura.send('vision:status', status),
+  undefined,
+  (value) => window.gestura.send('vision:diagnostics', value)
 )
+source.subscribe((frame) => window.gestura.send('vision:frame', serializeFaceFrame(frame)))
+const unsubscribePause = window.gestura.on('system:pause-state', ({ paused }) =>
+  source.setPaused(paused)
+)
+const unsubscribeControl = window.gestura.on('vision:control', ({ operation }) => {
+  if (operation === 'start') void source.start()
+  else source.stop()
+})
+window.addEventListener('beforeunload', () => {
+  source.stop()
+  unsubscribePause()
+  unsubscribeControl()
+})
+window.gestura.send('app:ready', {})

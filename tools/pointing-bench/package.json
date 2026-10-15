@@ -5,5 +5,11 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@gestura/core": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   }
 }

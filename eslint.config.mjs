@@ -6,7 +6,15 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  {
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out',
+      'apps/desktop/resources/vision/**',
+      'native/gestura-native/target/**'
+    ]
+  },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
@@ -108,7 +116,7 @@ export default defineConfig(
   },
   eslintConfigPrettier,
   {
-    files: ['native/gestura-native/**/*.mjs'],
+    files: ['native/gestura-native/**/*.mjs', 'scripts/**/*.mjs'],
     rules: { '@typescript-eslint/explicit-function-return-type': 'off' }
   }
 )
