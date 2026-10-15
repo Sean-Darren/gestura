@@ -1,3 +1,4 @@
+import { developmentCsp } from './build/dev-csp'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'electron-vite'
@@ -55,7 +56,7 @@ export default defineConfig({
         '@renderer': resolve(appRoot, 'src/renderer')
       }
     },
-    plugins: [react()],
+    plugins: [react(), developmentCsp()],
     build: {
       rollupOptions: {
         input: {
