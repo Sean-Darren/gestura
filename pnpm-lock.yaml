@@ -202,9 +202,24 @@ importers:
       '@gestura/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@gestura/gestures':
+        specifier: workspace:*
+        version: link:../../packages/gestures
       '@gestura/native':
         specifier: workspace:*
         version: link:../../native/gestura-native
+      '@gestura/pointer':
+        specifier: workspace:*
+        version: link:../../packages/pointer
+      '@gestura/pointing-bench':
+        specifier: workspace:*
+        version: link:../../tools/pointing-bench
+      '@gestura/replay':
+        specifier: workspace:*
+        version: link:../../tools/replay
+      '@mediapipe/tasks-vision':
+        specifier: 0.10.32
+        version: 0.10.32
       react:
         specifier: ^19.2.1
         version: 19.3.0
@@ -252,17 +267,36 @@ importers:
 
   packages/genai: {}
 
-  packages/gestures: {}
+  packages/gestures:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/intent: {}
 
-  packages/pointer: {}
+  packages/pointer:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../core
 
   tools/formula-bench: {}
 
-  tools/pointing-bench: {}
+  tools/pointing-bench:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
-  tools/replay: {}
+  tools/replay:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      zod:
+        specifier: ^4.1.12
+        version: 4.6.7
 
   tools/voice-bench: {}
 
@@ -765,6 +799,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mediapipe/tasks-vision@0.10.32':
+    resolution: {integrity: sha512-3tiAZnmKloYnRXYoO3dKltTUGnqeCwzC4lV03uY0vCsE+aveJTyEVQyZHOlQGQNsjK+gRHzkf9q08C99Qm2K0Q==}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -2596,6 +2633,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@mediapipe/tasks-vision@0.10.32': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true

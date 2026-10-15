@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "sessionStart": 0,
+  "sessionEnd": 3000.0,
+  "prompts": [
+    {
+      "prompt": "synthetic hold still",
+      "start": 0.0,
+      "end": 3000.0
+    }
+  ]
+}

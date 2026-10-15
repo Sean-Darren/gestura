@@ -119,7 +119,7 @@ docs/                     PROGRESS.md, open-questions.md, decisions/ (ADRs)
 | Run app (dev)                                      | `pnpm dev`                                  |
 | Lint + typecheck + test (run before saying "done") | `pnpm verify`                               |
 | Unit tests only                                    | `pnpm test`                                 |
-| Pointing benchmark                                 | `pnpm bench:pointing`                       |
+| Pointing benchmark (local UI, opt-in reports)       | `pnpm bench:pointing`                       |
 | Voice benchmark                                    | `pnpm bench:voice`                          |
 | Formula benchmark                                  | `pnpm bench:formula`                        |
 

@@ -1,3 +1,6 @@
+import { DEFAULT_SNAP_CONFIG } from '@gestura/core/config'
+import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
+import { DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +28,11 @@ describe('local app config', () => {
 
     expect(loadAppConfig(path)).toEqual({
       network: { allowlist: ['api.example.com'] },
-      logging: { enabled: true }
+      logging: { enabled: true },
+      pointer: DEFAULT_POINTER_CONFIG,
+      pointerProfile: { neutral: { yaw: 0, pitch: 0 } },
+      gestures: DEFAULT_GESTURE_CONFIG,
+      snapping: DEFAULT_SNAP_CONFIG
     })
   })
 

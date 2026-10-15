@@ -30,3 +30,470 @@ main {
   height: 100%;
   pointer-events: none;
 }
+
+/* The existing quiet green palette keeps attention on tracking state and prompts. */
+.debug-panel {
+  max-width: 860px;
+  margin: 0 auto;
+}
+.debug-panel header {
+  margin-bottom: 32px;
+}
+.debug-panel h1 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+.debug-panel h2 {
+  font-size: 1.2rem;
+  margin: 0 0 12px;
+}
+.debug-panel section {
+  padding: 20px 0;
+  border-top: 1px solid #77877e;
+}
+.debug-panel p {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.controls button {
+  min-height: 52px;
+  min-width: 52px;
+  padding: 12px 16px;
+  font: inherit;
+  color: #f4f6f3;
+  background: #24563d;
+  border: 2px solid #24563d;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.controls button:disabled {
+  color: #3e5147;
+  background: #dce4dd;
+  border-color: #77877e;
+  cursor: default;
+}
+.controls button:focus-visible {
+  outline: 3px solid #17211d;
+  outline-offset: 3px;
+}
+.hint {
+  color: #41544a;
+  font-size: 0.95rem;
+}
+.measurements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 36px;
+  margin: 16px 0;
+}
+.measurements dt {
+  color: #41544a;
+}
+.measurements dd {
+  margin: 6px 0 0;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+.score {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) minmax(80px, 1fr) 4ch;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+.score meter {
+  width: 100%;
+  height: 24px;
+  accent-color: #24563d;
+}
+.score output {
+  font-variant-numeric: tabular-nums;
+}
+.session-prompt {
+  margin-top: 20px;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .debug-panel {
+    padding: 16px;
+  }
+  .score {
+    grid-template-columns: 1fr 4ch;
+  }
+  .score label {
+    grid-column: 1 / -1;
+  }
+  .controls button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .debug-panel * {
+    animation: none;
+    transition: none;
+  }
+}
+
+.calibration-launch {
+  max-width: 860px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+.calibration-wizard {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24px;
+}
+.calibration-wizard header {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.calibration-timer {
+  font-variant-numeric: tabular-nums;
+}
+.calibration-instructions {
+  max-width: 700px;
+  margin: 20px auto;
+  line-height: 1.5;
+}
+.calibration-actions {
+  max-width: 800px;
+  margin: 32px auto 0;
+  justify-content: center;
+}
+.calibration-actions button {
+  min-height: 72px;
+  min-width: 160px;
+}
+.calibration-help {
+  max-width: 800px;
+  margin: 20px auto;
+  line-height: 1.5;
+}
+.framing-guide {
+  border: 2px solid #77877e;
+  width: min(320px, 90%);
+  min-height: 100px;
+  margin: 16px auto;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 12px;
+}
+.calibration-direction {
+  font-size: 1.5rem;
+}
+.calibration-target {
+  position: fixed;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  border: 3px solid #24563d;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #f4f6f3;
+  display: grid;
+  place-content: center;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 3;
+}
+.calibration-target progress {
+  width: 64px;
+  height: 12px;
+  accent-color: #24563d;
+}
+.gaze-dot::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #17211d;
+}
+.calibration-cursor {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #17211d;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 4;
+}
+.calibration-cursor progress {
+  width: 26px;
+  height: 8px;
+  margin-top: 32px;
+  accent-color: #24563d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .calibration-wizard * {
+    animation: none;
+    transition: none;
+  }
+}
+.calibration-target-mode .calibration-instructions {
+  position: fixed;
+  top: 26%;
+  left: 50%;
+  width: 45%;
+  margin: 0;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.calibration-target-mode .calibration-actions {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  width: calc(100% - 32px);
+  margin: 0;
+  transform: translateX(-50%);
+}
+.calibration-target-mode .calibration-actions button[data-dwell='logging'] {
+  display: none;
+}
+.calibration-target-mode .calibration-help {
+  position: fixed;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+@media (max-width: 480px) {
+  .calibration-target-mode .calibration-actions button {
+    width: auto;
+    min-width: 140px;
+  }
+}
+@media (max-width: 480px) {
+  .calibration-wizard {
+    padding: 12px;
+  }
+  .calibration-wizard h1 {
+    font-size: 1.5rem;
+    margin: 12px 0;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-instructions {
+    margin: 12px auto;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-instructions p {
+    margin: 8px 0;
+    font-size: 0.9rem;
+  }
+  .calibration-wizard .framing-guide {
+    min-height: 64px;
+    margin: 8px auto;
+    padding: 8px;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-actions {
+    margin-top: 12px;
+  }
+  .calibration-wizard:not(.calibration-target-mode) .calibration-actions button {
+    width: calc(50% - 6px);
+    min-width: 48px;
+  }
+}
+.gesture-overlay {
+  pointer-events: none;
+}
+.pause-corner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: 2px solid #17211d;
+  color: #f4f6f3;
+  background: #24563d;
+  font: 14px system-ui;
+  padding: 6px;
+}
+.pause-corner progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #f4f6f3;
+}
+.pause-corner:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -5px;
+}
+.pause-note {
+  position: fixed;
+  top: 80px;
+  right: 12px;
+  max-width: 300px;
+  color: #17211d;
+  background: #f4f6f3;
+  padding: 12px;
+  font: 14px/1.4 system-ui;
+  border: 1px solid #17211d;
+}
+.gesture-pointer,
+.gesture-click {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.gesture-pointer {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #17211d;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white;
+}
+.gesture-pointer svg {
+  width: 100%;
+  height: 100%;
+}
+.gesture-pointer.frozen {
+  border-style: dashed;
+}
+.gesture-click {
+  width: 52px;
+  height: 52px;
+  border: 4px solid #24563d;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px white,
+    0 0 0 5px #17211d;
+}
+/* Benchmark targets preserve measured geometry; surrounding controls keep normal accessible sizes. */
+.bench-launch {
+  padding: 12px 24px;
+}
+.pointing-bench {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: auto;
+  background: #f4f6f3;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.pointing-bench h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.pointing-bench p {
+  margin: 8px 0;
+}
+.pointing-bench .controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pointing-bench button {
+  min-height: 52px;
+  min-width: 48px;
+}
+.bench-surface {
+  position: relative;
+  height: min(60vh, 600px);
+  min-height: 300px;
+  min-width: 320px;
+  border: 1px solid #17211d;
+  background: white;
+  box-sizing: content-box;
+  touch-action: none;
+}
+.bench-target {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #59665e;
+  background: #e8ede8;
+  color: #17211d;
+  font: 12px/18px system-ui;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.bench-target.active {
+  background: #24563d;
+  color: white;
+  border: 2px solid #17211d;
+}
+.bench-target {
+  text-align: center;
+  pointer-events: none;
+}
+.bench-link {
+  text-decoration: underline;
+}
+.bench-empty {
+  padding: 24px;
+  max-width: 650px;
+}
+.bench-paused {
+  position: absolute;
+  inset: 0;
+  background: #f4f6f3;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  font-size: 1.2rem;
+}
+.bench-report pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    13px/1.5 ui-monospace,
+    monospace;
+}
+@media (max-width: 480px) {
+  .pointing-bench {
+    padding: 8px;
+  }
+  .pointing-bench .controls button {
+    flex: 1 1 45%;
+  }
+  .bench-surface {
+    min-width: 0;
+    width: 100%;
+  }
+  .bench-empty {
+    padding: 12px;
+  }
+}
+.snap-highlight {
+  position: fixed;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 3px solid #24563d;
+  outline: 2px solid white;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px #17211d;
+}
+.snap-settings {
+  padding: 16px 24px;
+}
+.snap-settings ul {
+  list-style: none;
+  padding: 0;
+}
+.snap-settings li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.snap-settings li p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.snap-app-id {
+  overflow-wrap: anywhere;
+}
+.snap-settings button {
+  min-height: 52px;
+  min-width: 48px;
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "sessionStart": 0,
+  "sessionEnd": 15000.0,
+  "prompts": [
+    {
+      "prompt": "synthetic center",
+      "start": 0.0,
+      "end": 3000.0
+    },
+    {
+      "prompt": "synthetic left edge",
+      "start": 3000.0,
+      "end": 6000.0
+    },
+    {
+      "prompt": "synthetic right edge",
+      "start": 6000.0,
+      "end": 9000.0
+    },
+    {
+      "prompt": "synthetic top edge",
+      "start": 9000.0,
+      "end": 12000.0
+    },
+    {
+      "prompt": "synthetic bottom edge",
+      "start": 12000.0,
+      "end": 15000.0
+    }
+  ]
+}
