@@ -1,4 +1,7 @@
 import { SnapController } from './snapping/controller'
+import { SpeechController } from './speech/controller'
+import { SpeechTransport } from './speech/transport'
+import { allowSpeechMicrophone } from './speech/permissions'
 import { SnapStore } from './snapping/store'
 import coverageData from 'virtual:gestura-ui-coverage'
 import { PoorCoverageSchema } from '@gestura/core'
@@ -61,6 +64,8 @@ let visionReady = false
 let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
 let snapController: SnapController | undefined
+let speechController: SpeechController | undefined
+let speechTransport: SpeechTransport | undefined
 let benchController: BenchController | undefined
 let pointerController: PointerController | undefined
 let gestureOverlay: OverlayController | undefined
@@ -93,7 +98,7 @@ let currentReplayPrompt: IpcPayloadFor<'replay:prompt'> = {
 }
 let controlWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
-type RendererPage = 'control' | 'overlay' | 'vision'
+type RendererPage = 'control' | 'overlay' | 'vision' | 'speech'
 
 function localRendererOrigin(value: string | undefined): string | undefined {
   if (!value) return undefined
@@ -184,6 +189,7 @@ function createControlWindow(): BrowserWindow {
     })
   })
   controlWindow.on('closed', () => {
+    speechController?.setEnabled(false)
     void benchController?.control({ operation: 'cancel' })
     if (calibrationController?.state.active)
       void calibrationController.control({ operation: 'cancel' })
@@ -238,6 +244,14 @@ function registerIpc(): void {
       const envelope = parseIpcEnvelope(candidate)
       const role = trustedWebContents.get(event.sender.id)
       if (!role || !acceptsRendererChannel(role, envelope.channel)) return
+      if (envelope.channel === 'speech:control') {
+        speechController?.setEnabled(envelope.payload.enabled)
+        return
+      }
+      if (envelope.channel === 'speech:capture') {
+        speechController?.capture(envelope.payload)
+        return
+      }
       if (envelope.channel === 'snap:control') {
         void snapController?.setPreference(envelope.payload)
         return
@@ -300,6 +314,12 @@ function registerIpc(): void {
         return
       }
       if (envelope.channel === 'app:ready') {
+        if (role === 'speech') speechTransport?.ready()
+        if (speechController && (role === 'control' || role === 'overlay'))
+          event.sender.send(
+            'gestura:ipc',
+            createIpcEnvelope('speech:state', speechController.state)
+          )
         if (gestureOverlay && (role === 'control' || role === 'overlay'))
           event.sender.send(
             'gestura:ipc',
@@ -400,21 +420,36 @@ app.whenReady().then(async () => {
   )
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
     callback(
-      allowVisionCamera(
+      allowSpeechMicrophone(
         contents.id,
-        visionWindow?.webContents.id,
+        speechTransport?.captureId,
         permission,
-        'mediaTypes' in details ? details.mediaTypes : undefined
-      )
+        'mediaTypes' in details ? details.mediaTypes : undefined,
+        speechController?.state.state === 'starting'
+      ) ||
+        allowVisionCamera(
+          contents.id,
+          visionWindow?.webContents.id,
+          permission,
+          'mediaTypes' in details ? details.mediaTypes : undefined
+        )
     )
   })
-  session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) =>
-    allowVisionCamera(
-      contents?.id,
-      visionWindow?.webContents.id,
-      permission,
-      details.mediaType === 'video' ? ['video'] : []
-    )
+  session.defaultSession.setPermissionCheckHandler(
+    (contents, permission, _origin, details) =>
+      allowSpeechMicrophone(
+        contents?.id,
+        speechTransport?.captureId,
+        permission,
+        details.mediaType === 'audio' ? ['audio'] : [],
+        ['starting', 'listening'].includes(speechController?.state.state ?? '')
+      ) ||
+      allowVisionCamera(
+        contents?.id,
+        visionWindow?.webContents.id,
+        permission,
+        details.mediaType === 'video' ? ['video'] : []
+      )
   )
   const sendControl = <
     Channel extends
@@ -525,6 +560,10 @@ app.whenReady().then(async () => {
     reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false
   })
   pointerController = new PointerController({
+    toggleListening: () =>
+      speechController?.setEnabled(
+        speechController.state.state === 'off' || speechController.state.state === 'error'
+      ),
     snapping: snapController,
     bridge: nativeInput,
     pause,
@@ -622,6 +661,40 @@ app.whenReady().then(async () => {
   }, 100)
   registerPauseHotkey()
   registerIpc()
+  speechTransport = new SpeechTransport({
+    directory: app.isPackaged
+      ? join(process.resourcesPath, 'speech')
+      : join(app.getAppPath(), 'resources/speech'),
+    config: config.speech,
+    createCapture: () =>
+      createWindow('speech', {
+        title: 'Gestura Microphone Capture',
+        show: false,
+        width: 1,
+        height: 1,
+        skipTaskbar: true,
+        webPreferences: { backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' }
+      })
+  })
+  speechController = new SpeechController({
+    pause,
+    start: (generation, receive) => speechTransport!.start(generation, receive),
+    connect: (generation) => speechTransport!.connect(generation),
+    stop: () => speechTransport?.stop(),
+    publish: (state) => {
+      for (const window of [controlWindow, overlayWindow])
+        if (window && !window.isDestroyed())
+          window.webContents.send('gestura:ipc', createIpcEnvelope('speech:state', state))
+    },
+    transcript: (transcript) => {
+      if (controlWindow && !controlWindow.isDestroyed())
+        controlWindow.webContents.send(
+          'gestura:ipc',
+          createIpcEnvelope('speech:transcript', transcript)
+        )
+    },
+    activity: (state) => pointerController?.setSpeechState(state)
+  })
   createWindows()
   app.on('activate', () => {
     if (!controlWindow || controlWindow.isDestroyed()) createControlWindow()
@@ -635,6 +708,7 @@ app.on('window-all-closed', () => {
 let benchmarkFlushed = false
 let flushingBenchmark = false
 app.on('before-quit', (event) => {
+  speechController?.dispose()
   if (benchController && !benchmarkFlushed) {
     event.preventDefault()
     if (flushingBenchmark) return

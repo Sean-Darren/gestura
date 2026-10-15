@@ -16,7 +16,7 @@ describe('renderer development CSP', () => {
     })
     try {
       const nonces = new Set<string>()
-      for (const page of ['control', 'overlay', 'vision', 'control']) {
+      for (const page of ['control', 'overlay', 'vision', 'speech', 'control']) {
         const source = await readFile(
           new URL(`../src/renderer/${page}/index.html`, import.meta.url),
           'utf8'
@@ -41,7 +41,7 @@ describe('renderer development CSP', () => {
   })
   it('is development-only and leaves source production policies strict', async () => {
     expect(developmentCsp().apply).toBe('serve')
-    for (const page of ['control', 'overlay', 'vision']) {
+    for (const page of ['control', 'overlay', 'vision', 'speech']) {
       const source = await readFile(
         new URL(`../src/renderer/${page}/index.html`, import.meta.url),
         'utf8'

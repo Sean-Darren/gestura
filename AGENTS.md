@@ -120,7 +120,7 @@ docs/                     PROGRESS.md, open-questions.md, decisions/ (ADRs)
 | Lint + typecheck + test (run before saying "done") | `pnpm verify`                               |
 | Unit tests only                                    | `pnpm test`                                 |
 | Pointing benchmark (local UI, opt-in reports)       | `pnpm bench:pointing`                       |
-| Voice benchmark                                    | `pnpm bench:voice`                          |
+| Voice ASR WAV benchmark (local models required)     | `pnpm bench:voice`                          |
 | Formula benchmark                                  | `pnpm bench:formula`                        |
 
 If a command here does not exist yet, create it in the step that needs it and

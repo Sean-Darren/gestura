@@ -151,7 +151,7 @@ export class PointerController {
       0,
       mode === 'off'
         ? 'Click gestures are off'
-        : `${mode} click mode; jaw listening awaits Phase 3 speech state`
+        : `${mode} click mode; use Local speech to start listening`
     )
   }
   setSpeechState(state: SpeechState): void {

@@ -240,8 +240,8 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
         </div>
         <p className="hint">
           Calibrate first. Long blink = left click; left wink = right click. Natural blinks do not
-          click. Jaw listening awaits speech-state gating in Phase 3. Camera stays on during pause
-          for corner-dwell resume; Stop Tracking turns it off.
+          click. Use Local speech to start listening. A held mouth gesture can stop it between
+          phrases. Camera stays on during pause for corner-dwell resume; Stop Tracking turns it off.
         </p>
       </section>
       <section aria-labelledby="scores-heading">

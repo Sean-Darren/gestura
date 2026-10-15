@@ -497,3 +497,22 @@ main {
   min-height: 52px;
   min-width: 48px;
 }
+.speech-settings {
+  padding: 1.5rem;
+}
+.speech-preview {
+  overflow-wrap: anywhere;
+}
+.mic-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 10px 14px;
+  background: #17211d;
+  color: #fff;
+  border: 2px solid #fff;
+  pointer-events: none;
+  font:
+    600 16px system-ui,
+    sans-serif;
+}

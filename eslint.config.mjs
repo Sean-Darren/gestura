@@ -12,6 +12,7 @@ export default defineConfig(
       '**/dist',
       '**/out',
       'apps/desktop/resources/vision/**',
+      'apps/desktop/resources/speech/**',
       'native/gestura-native/target/**'
     ]
   },

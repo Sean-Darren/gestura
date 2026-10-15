@@ -4,6 +4,7 @@
     "electron.vite.config.ts",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
+    "src/utility/**/*.ts",
     "build/**/*.ts"
   ],
   "compilerOptions": {

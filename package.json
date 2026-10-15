@@ -17,7 +17,8 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm test",
     "native:ui-probe": "pnpm native:build && pnpm --filter @gestura/desktop native:ui-probe",
     "models:fetch": "node scripts/fetch-models.mjs",
-    "bench:pointing": "pnpm --filter @gestura/desktop bench:pointing"
+    "bench:pointing": "pnpm --filter @gestura/desktop bench:pointing",
+    "bench:voice": "node scripts/voice-bench.mjs"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

@@ -1,0 +1,22 @@
+import { expect, it } from 'vitest'
+import { readMonoWav } from './wav'
+it('decodes PCM16 and rejects wrong rates, truncated data and non-WAV files', () => {
+  const bytes = new Uint8Array(48)
+  const view = new DataView(bytes.buffer)
+  bytes.set(new TextEncoder().encode('RIFF'), 0)
+  bytes.set(new TextEncoder().encode('WAVEfmt '), 8)
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, 16000, true)
+  view.setUint16(34, 16, true)
+  bytes.set(new TextEncoder().encode('data'), 36)
+  view.setUint32(40, 4, true)
+  view.setInt16(44, -32768, true)
+  view.setInt16(46, 16384, true)
+  expect([...readMonoWav(bytes)]).toEqual([-1, 0.5])
+  expect(() => readMonoWav(bytes.subarray(0, 46))).toThrow('Truncated')
+  view.setUint32(24, 48000, true)
+  expect(() => readMonoWav(bytes)).toThrow('16 kHz')
+  expect(() => readMonoWav(new Uint8Array(50))).toThrow('RIFF')
+})

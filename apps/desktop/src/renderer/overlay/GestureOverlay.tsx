@@ -3,15 +3,20 @@ import type { JSX } from 'react'
 import type { OverlayState } from '@gestura/core'
 export function GestureOverlay(): JSX.Element {
   const [state, setState] = useState<OverlayState | null>(null)
+  const [micLive, setMicLive] = useState(false)
   const [flash, setFlash] = useState<OverlayState['click']>(null)
   useEffect(() => {
+    const offSpeech = window.gestura.on('speech:state', (value) => setMicLive(value.micLive))
     const off = window.gestura.on('gestures:state', (value) => {
       setState(value)
       if (value.click && performance.timeOrigin + performance.now() - value.click.t < 250)
         setFlash(value.click)
     })
     window.gestura.send('app:ready', {})
-    return off
+    return () => {
+      off()
+      offSpeech()
+    }
   }, [])
   useEffect(() => {
     if (!flash) return
@@ -22,6 +27,11 @@ export function GestureOverlay(): JSX.Element {
   const cursor = state.cursor
   return (
     <div className="gesture-overlay" aria-label="Gestura gesture feedback">
+      {micLive && (
+        <div className="mic-indicator" role="status">
+          Microphone live
+        </div>
+      )}
       <button
         className="pause-corner"
         style={{ width: state.pauseTargetSize, height: state.pauseTargetSize }}

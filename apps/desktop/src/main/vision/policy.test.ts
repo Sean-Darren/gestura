@@ -3,6 +3,14 @@ import { acceptsRendererChannel } from './ipc-policy'
 import { allowVisionCamera } from './permissions'
 import { visionAssetName, readVisionAsset } from './assets'
 import { FaceMetrics } from './metrics'
+it('only accepts microphone status from capture and listening control from control', () => {
+  expect(acceptsRendererChannel('speech', 'speech:capture')).toBe(true)
+  expect(acceptsRendererChannel('control', 'speech:control')).toBe(true)
+  for (const role of ['vision', 'overlay', 'control'] as const)
+    expect(acceptsRendererChannel(role, 'speech:capture')).toBe(false)
+  expect(acceptsRendererChannel('speech', 'speech:control')).toBe(false)
+  expect(acceptsRendererChannel('speech', 'speech:transcript')).toBe(false)
+})
 describe('vision boundary', () => {
   it('only accepts feature frames from vision and controls from control', () => {
     expect(acceptsRendererChannel('vision', 'vision:frame')).toBe(true)

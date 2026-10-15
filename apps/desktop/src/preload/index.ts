@@ -1,7 +1,18 @@
+import '../shared/schema-runtime'
 import { contextBridge, ipcRenderer } from 'electron'
 import { createIpcEnvelope, parseIpcChannel, parseIpcEnvelope } from '@gestura/core'
 import type { IpcChannel, IpcPayloadFor, IpcSendPayloadFor } from '@gestura/core'
 import type { GesturaApi } from './types'
+import { SpeechPortSchema } from '@gestura/core'
+
+// Transfer only the dedicated capture port into the local capture page. No raw IPC API is exposed.
+if (location.pathname.endsWith('/speech/index.html')) {
+  ipcRenderer.on('gestura:speech-port', (event, descriptor: unknown) => {
+    const parsed = SpeechPortSchema.safeParse(descriptor)
+    if (!parsed.success || event.ports.length !== 1) return
+    window.postMessage({ type: 'gestura:speech-port', descriptor: parsed.data }, '*', event.ports)
+  })
+}
 
 const api: GesturaApi = {
   on(channel, callback) {
