@@ -73,6 +73,7 @@ export class PointerController {
       pause: PauseController
       now(): number
       publish(metrics: PointerMetrics): void
+      latencySample?(time: number, latencyMs: number): void
       config?: PointerConfig
       profile?: PointerProfile
       gestures?: GestureConfig
@@ -374,6 +375,7 @@ export class PointerController {
       this.lastPoint = { x: command.x, y: command.y }
       this.lastMoveCapture = frame.tCapture
       this.feedback(false, this.dwellProgress)
+      this.options.latencySample?.(tMoveSent, Math.max(0, tMoveSent - command.tCapture))
       this.samples.push({ time: tMoveSent, latency: Math.max(0, tMoveSent - command.tCapture) })
       while (
         this.samples.length > 240 ||

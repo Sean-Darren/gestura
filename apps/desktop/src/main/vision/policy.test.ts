@@ -94,3 +94,10 @@ it('restricts gesture mode controls and permits pause from control or overlay on
   expect(acceptsRendererChannel('vision', 'system:toggle-pause')).toBe(false)
   expect(acceptsRendererChannel('control', 'gestures:state')).toBe(false)
 })
+
+it('accepts benchmark commands only from control and never renderer feedback', () => {
+  expect(acceptsRendererChannel('control', 'bench:control')).toBe(true)
+  expect(acceptsRendererChannel('vision', 'bench:control')).toBe(false)
+  expect(acceptsRendererChannel('overlay', 'bench:control')).toBe(false)
+  expect(acceptsRendererChannel('control', 'bench:state')).toBe(false)
+})

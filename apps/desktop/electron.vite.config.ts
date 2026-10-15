@@ -27,6 +27,7 @@ export default defineConfig({
       },
       externalizeDeps: {
         exclude: [
+          '@gestura/pointing-bench',
           '@gestura/core',
           '@gestura/replay',
           '@gestura/pointer',

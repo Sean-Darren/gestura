@@ -122,3 +122,12 @@ export const AppConfigSchema = z
 export type AppConfig = z.infer<typeof AppConfigSchema>
 
 export const DEFAULT_CONFIG = AppConfigSchema.parse({})
+
+export const BenchOptionsSchema = z
+  .object({
+    mode: z.enum(['standard', 'realistic']).default('standard'),
+    persist: z.boolean().default(false),
+    timeoutMs: z.number().finite().min(1000).max(120000).default(30000)
+  })
+  .strict()
+export const DEFAULT_BENCH_OPTIONS = BenchOptionsSchema.parse({})

@@ -1,3 +1,4 @@
+import { BenchControlSchema, BenchStateSchema } from './pointing-bench'
 import { GestureControlSchema, OverlayStateSchema } from './gestures'
 import {
   CalibrationControlSchema,
@@ -17,6 +18,8 @@ import {
 } from './face-frame'
 
 export const IPC_CHANNELS = [
+  'bench:control',
+  'bench:state',
   'app:ready',
   'app:status',
   'system:pause-state',
@@ -39,6 +42,8 @@ export const IPC_CHANNELS = [
 export const IPC_TRANSPORT_CHANNEL = 'gestura:ipc'
 
 export const IPC_PAYLOAD_SCHEMAS = {
+  'bench:control': BenchControlSchema,
+  'bench:state': BenchStateSchema,
   'app:ready': z.object({}).strict(),
   'app:status': z.object({ status: z.literal('ready') }).strict(),
   'system:pause-state': z.object({ paused: z.boolean() }).strict(),
@@ -111,3 +116,5 @@ export * from './pointer'
 export * from './calibration'
 
 export * from './gestures'
+
+export * from './pointing-bench'

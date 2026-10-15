@@ -9,7 +9,8 @@
     "native:bench": "electron-vite build && electron out/main/native-bench.js",
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "native:ui-probe": "electron-vite build && electron out/main/native-ui-probe.js"
+    "native:ui-probe": "electron-vite build && electron out/main/native-ui-probe.js",
+    "bench:pointing": "electron-vite build && electron . --pointing-bench"
   },
   "dependencies": {
     "@gestura/core": "workspace:*",
@@ -20,7 +21,8 @@
     "@mediapipe/tasks-vision": "0.10.32",
     "@gestura/replay": "workspace:*",
     "@gestura/pointer": "workspace:*",
-    "@gestura/gestures": "workspace:*"
+    "@gestura/gestures": "workspace:*",
+    "@gestura/pointing-bench": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

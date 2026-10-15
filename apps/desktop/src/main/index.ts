@@ -1,3 +1,5 @@
+import { BenchController } from './pointing-bench/controller'
+import { BenchStore } from './pointing-bench/store'
 import { OverlayController } from './gestures/overlay'
 import { CalibrationController } from './calibration/controller'
 import { CalibrationStore } from './calibration/store'
@@ -28,6 +30,21 @@ import { createBlockedRequestLogger } from './network/local-log'
 import { pauseAccelerator } from './pause'
 import { pause, nativeInput, nativeUi } from './native/runtime'
 
+let benchmarkRequested = process.argv.includes('--pointing-bench')
+const primaryInstance = app.requestSingleInstanceLock()
+if (!primaryInstance) app.quit()
+app.on('second-instance', (_event, args) => {
+  if (args.includes('--pointing-bench')) {
+    benchmarkRequested = true
+    benchController?.show()
+  }
+  if (controlWindow && !controlWindow.isDestroyed()) {
+    if (controlWindow.isMinimized()) controlWindow.restore()
+    controlWindow.show()
+    controlWindow.focus()
+  }
+})
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'app',
@@ -39,6 +56,7 @@ let visionWindow: BrowserWindow | null = null
 let visionReady = false
 let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
+let benchController: BenchController | undefined
 let pointerController: PointerController | undefined
 let gestureOverlay: OverlayController | undefined
 let calibrationController: CalibrationController | undefined
@@ -147,7 +165,21 @@ function createControlWindow(): BrowserWindow {
     autoHideMenuBar: true
   })
   controlWindow.once('ready-to-show', () => controlWindow?.show())
+  const window = controlWindow
+  let closing = false,
+    allowClose = false
+  window.on('close', (event) => {
+    if (allowClose || !benchController) return
+    event.preventDefault()
+    if (closing) return
+    closing = true
+    void benchController.settle().finally(() => {
+      allowClose = true
+      if (!window.isDestroyed()) window.close()
+    })
+  })
   controlWindow.on('closed', () => {
+    void benchController?.control({ operation: 'cancel' })
     if (calibrationController?.state.active)
       void calibrationController.control({ operation: 'cancel' })
     calibrationWindowBounds = undefined
@@ -201,6 +233,11 @@ function registerIpc(): void {
       const envelope = parseIpcEnvelope(candidate)
       const role = trustedWebContents.get(event.sender.id)
       if (!role || !acceptsRendererChannel(role, envelope.channel)) return
+      if (envelope.channel === 'bench:control') {
+        if (envelope.payload.operation !== 'start' || !calibrationController?.state.active)
+          void benchController?.control(envelope.payload)
+        return
+      }
       if (envelope.channel === 'vision:diagnostics') {
         calibrationController?.diagnostics(envelope.payload)
         return
@@ -260,6 +297,11 @@ function registerIpc(): void {
             createIpcEnvelope('gestures:state', gestureOverlay.snapshot)
           )
         if (role === 'control') {
+          if (benchController)
+            event.sender.send(
+              'gestura:ipc',
+              createIpcEnvelope('bench:state', benchController.state)
+            )
           calibrationController?.firstRun()
           if (calibrationController)
             event.sender.send(
@@ -329,6 +371,7 @@ function registerPauseHotkey(): void {
 }
 
 app.whenReady().then(async () => {
+  if (!primaryInstance) return
   const config = loadAppConfig(join(app.getPath('userData'), 'config.json'))
   const calibrationStore = new CalibrationStore(app.getPath('userData'))
   const calibrationProfile = await calibrationStore.load()
@@ -361,7 +404,12 @@ app.whenReady().then(async () => {
   )
   const sendControl = <
     Channel extends
-      'vision:status' | 'vision:metrics' | 'replay:prompt' | 'pointer:metrics' | 'calibration:state'
+      | 'vision:status'
+      | 'vision:metrics'
+      | 'replay:prompt'
+      | 'pointer:metrics'
+      | 'calibration:state'
+      | 'bench:state'
   >(
     channel: Channel,
     payload: IpcSendPayloadFor<Channel>
@@ -436,11 +484,22 @@ app.whenReady().then(async () => {
           window.webContents.send('gestura:ipc', createIpcEnvelope('gestures:state', state))
     }
   })
+  const benchStore = new BenchStore(join(app.getPath('userData'), 'pointing-bench'))
+  benchController = new BenchController({
+    directory: join(app.getPath('userData'), 'pointing-bench'),
+    pause,
+    now: () => performance.timeOrigin + performance.now(),
+    publish: (state) => sendControl('bench:state', state),
+    save: (value) => benchStore.save(value),
+    clear: () => benchStore.clear()
+  })
+  if (benchmarkRequested) benchController.show()
   pointerController = new PointerController({
     bridge: nativeInput,
     pause,
     config: config.pointer,
     gestures: config.gestures,
+    latencySample: (time, ms) => benchController?.sample(time, ms),
     feedback: (state) => gestureOverlay?.feedback(state),
     reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false,
     profile: config.pointerProfile,
@@ -505,14 +564,17 @@ app.whenReady().then(async () => {
     pointerController?.consume(frame)
   })
   screen.on('display-added', () => {
+    void benchController?.control({ operation: 'cancel' })
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-removed', () => {
+    void benchController?.control({ operation: 'cancel' })
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-metrics-changed', () => {
+    void benchController?.control({ operation: 'cancel' })
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
@@ -521,6 +583,7 @@ app.whenReady().then(async () => {
     pointerController?.tick()
     calibrationController?.tick()
     gestureOverlay?.tick()
+    benchController?.tick()
   }, 100)
   registerPauseHotkey()
   registerIpc()
@@ -534,9 +597,23 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', () => {
+let benchmarkFlushed = false
+let flushingBenchmark = false
+app.on('before-quit', (event) => {
+  if (benchController && !benchmarkFlushed) {
+    event.preventDefault()
+    if (flushingBenchmark) return
+    flushingBenchmark = true
+    if (!pause.paused) pause.toggle()
+    void benchController.settle().finally(() => {
+      benchmarkFlushed = true
+      app.quit()
+    })
+    return
+  }
   clearInterval(recorderTimer)
   unsubscribePointer?.()
+  benchController?.dispose()
   pointerController?.dispose()
   gestureOverlay?.dispose()
   calibrationController?.dispose()

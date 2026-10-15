@@ -211,6 +211,9 @@ importers:
       '@gestura/pointer':
         specifier: workspace:*
         version: link:../../packages/pointer
+      '@gestura/pointing-bench':
+        specifier: workspace:*
+        version: link:../../tools/pointing-bench
       '@gestura/replay':
         specifier: workspace:*
         version: link:../../tools/replay
@@ -280,7 +283,11 @@ importers:
 
   tools/formula-bench: {}
 
-  tools/pointing-bench: {}
+  tools/pointing-bench:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
   tools/replay:
     dependencies:

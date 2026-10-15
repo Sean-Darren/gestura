@@ -1,3 +1,4 @@
+import { PointingBench } from './PointingBench'
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { CalibrationState } from '@gestura/core'
@@ -22,6 +23,7 @@ const initial: CalibrationState = {
 }
 export function CalibrationControl(): JSX.Element {
   const [state, setState] = useState(initial)
+  const [benchOpen, setBenchOpen] = useState(false)
   const surface = useRef<HTMLElement | null>(null)
   const dwell = useRef<{ key: string; since: number } | undefined>(undefined)
   const consumed = useRef(false)
@@ -77,35 +79,38 @@ export function CalibrationControl(): JSX.Element {
   if (!state.active)
     return (
       <>
-        <section className="calibration-launch controls" aria-label="Calibration settings">
-          <DwellButton onClick={() => command('start')}>
-            {state.firstRun ? 'Start first-run calibration' : 'Recalibrate'}
-          </DwellButton>
-          <DwellButton
-            onClick={() =>
-              window.gestura.send('calibration:control', {
-                operation: 'logging',
-                enabled: !state.loggingEnabled
-              })
-            }
-          >
-            {state.loggingEnabled ? 'Disable local duration log' : 'Enable local duration log'}
-          </DwellButton>
-          <DwellButton
-            disabled={state.firstRun}
-            onClick={() =>
-              window.gestura.send('calibration:control', {
-                operation: 'gaze',
-                enabled: !state.gazeEnabled
-              })
-            }
-          >
-            {state.gazeEnabled ? 'Disable calibrated gaze' : 'Enable calibrated gaze'}
-          </DwellButton>
-          <DwellButton onClick={() => command('clear-log')}>Clear local duration log</DwellButton>
-          <p role="status">{state.message}</p>
-        </section>
-        <DebugPanel gazeEnabled={state.gazeEnabled} />
+        <PointingBench onOpenChange={setBenchOpen} />
+        <div hidden={benchOpen} inert={benchOpen}>
+          <section className="calibration-launch controls" aria-label="Calibration settings">
+            <DwellButton onClick={() => command('start')}>
+              {state.firstRun ? 'Start first-run calibration' : 'Recalibrate'}
+            </DwellButton>
+            <DwellButton
+              onClick={() =>
+                window.gestura.send('calibration:control', {
+                  operation: 'logging',
+                  enabled: !state.loggingEnabled
+                })
+              }
+            >
+              {state.loggingEnabled ? 'Disable local duration log' : 'Enable local duration log'}
+            </DwellButton>
+            <DwellButton
+              disabled={state.firstRun}
+              onClick={() =>
+                window.gestura.send('calibration:control', {
+                  operation: 'gaze',
+                  enabled: !state.gazeEnabled
+                })
+              }
+            >
+              {state.gazeEnabled ? 'Disable calibrated gaze' : 'Enable calibrated gaze'}
+            </DwellButton>
+            <DwellButton onClick={() => command('clear-log')}>Clear local duration log</DwellButton>
+            <p role="status">{state.message}</p>
+          </section>
+          <DebugPanel gazeEnabled={state.gazeEnabled} />
+        </div>
       </>
     )
   const heading =

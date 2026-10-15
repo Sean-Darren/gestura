@@ -265,3 +265,33 @@ describe('gesture native dispatch', () => {
     expect(s.mock.calls).toHaveLength(count)
   })
 })
+
+it('exports individual live movement latencies and never replay or paused samples', () => {
+  const mock = new MockNativeInput(),
+    pause = new PauseController(),
+    samples: { time: number; ms: number }[] = []
+  let time = 1000
+  const controller = new PointerController({
+    bridge: createNativeInput(pause, () => mock),
+    pause,
+    now: () => time,
+    publish: () => {},
+    latencySample: (t, ms) => samples.push({ time: t, ms })
+  })
+  controller.setSource('running')
+  controller.setEnabled(true)
+  controller.consume(testFrame(980))
+  time = 1020
+  controller.consume(testFrame(1000))
+  expect(samples).toEqual([
+    { time: 1000, ms: 20 },
+    { time: 1020, ms: 20 }
+  ])
+  pause.toggle()
+  controller.consume(testFrame(1010))
+  pause.toggle()
+  controller.setSource('replaying')
+  controller.consume(testFrame(100))
+  expect(samples).toHaveLength(2)
+  controller.dispose()
+})
