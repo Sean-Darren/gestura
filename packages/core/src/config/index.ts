@@ -156,6 +156,16 @@ export const SpeechConfigSchema = z
 export type SpeechConfig = z.infer<typeof SpeechConfigSchema>
 export const DEFAULT_SPEECH_CONFIG = SpeechConfigSchema.parse({})
 
+export const IntentConfigSchema = z
+  .object({
+    fuzzyThreshold: z.number().min(0.7).max(1).default(0.86),
+    ambiguityMargin: z.number().min(0.01).max(0.5).default(0.08),
+    maxInputLength: z.number().int().min(100).max(16000).default(2000)
+  })
+  .strict()
+export type IntentConfig = z.infer<typeof IntentConfigSchema>
+export const DEFAULT_INTENT_CONFIG = IntentConfigSchema.parse({})
+
 export const AppConfigSchema = z
   .object({
     network: NetworkConfigSchema.default({ allowlist: [] }),
@@ -164,7 +174,8 @@ export const AppConfigSchema = z
     pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } }),
     gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG),
     snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG),
-    speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG)
+    speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG),
+    intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG)
   })
   .strict()
 

@@ -1,4 +1,8 @@
-import { DEFAULT_SNAP_CONFIG, DEFAULT_SPEECH_CONFIG } from '@gestura/core/config'
+import {
+  DEFAULT_SNAP_CONFIG,
+  DEFAULT_SPEECH_CONFIG,
+  DEFAULT_INTENT_CONFIG
+} from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from './index'
 import { describe, expect, it } from 'vitest'
 import {
@@ -42,7 +46,8 @@ describe('app config', () => {
       pointerProfile: { neutral: { yaw: 0, pitch: 0 } },
       gestures: DEFAULT_GESTURE_CONFIG,
       snapping: DEFAULT_SNAP_CONFIG,
-      speech: DEFAULT_SPEECH_CONFIG
+      speech: DEFAULT_SPEECH_CONFIG,
+      intent: DEFAULT_INTENT_CONFIG
     })
   })
 

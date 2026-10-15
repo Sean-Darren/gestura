@@ -140,3 +140,5 @@ export * from './pointing-bench'
 
 export * from './snap'
 export * from './speech'
+export * from './intent'
+export * from './voice-bench'

@@ -67,7 +67,7 @@ async function runFixture(file: string): Promise<void> {
     engine.dispose()
   }
 }
-describe.skipIf(!enabled)('real SenseVoice/Silero WAV replay (pnpm bench:voice)', () => {
+describe.skipIf(!enabled)('real SenseVoice/Silero WAV replay (pnpm bench:voice:asr)', () => {
   for (const lang of ['en', 'zh', 'yue', 'ja', 'ko'])
     it(`recognizes the pinned ${lang} sample with real-time capture pacing`, async () => {
       await runFixture(resolve(root, 'fixtures/audio/sherpa', `${lang}.wav`))

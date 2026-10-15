@@ -10,7 +10,7 @@ import { benchmarkMoves, latencyPercentiles } from './latency'
 
 function confirmed(text: string, gate = new ActionGate()): ConfirmedAction {
   const id = gate.propose({ kind: 'type-text', content: { text } })
-  const action = gate.confirm(id, { kind: 'voice-confirm' })
+  const action = gate.confirm(id, { kind: 'held-mouth-gesture' })
   if (!action) throw new Error('Test confirmation failed')
   return action
 }
