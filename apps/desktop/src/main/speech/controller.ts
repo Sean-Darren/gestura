@@ -5,6 +5,7 @@ import type { PauseController } from '../pause'
 export class SpeechController {
   private generation = 0
   private enabled = false
+  private gazeOnly = false
   private status: SpeechStatus = { state: 'off', micLive: false, message: 'Listening is off' }
   private timeout: ReturnType<typeof setTimeout> | undefined
   private readonly unsubscribe: () => void
@@ -26,6 +27,10 @@ export class SpeechController {
   get state(): SpeechStatus {
     return this.status
   }
+  setGazeOnly(enabled: boolean): void {
+    this.gazeOnly = enabled
+    if (enabled) this.setEnabled(false)
+  }
   private publish(
     state: SpeechStatus['state'],
     message: string,
@@ -35,7 +40,7 @@ export class SpeechController {
     this.options.publish(this.status)
   }
   setEnabled(enabled: boolean): void {
-    if (enabled && this.options.pause.paused) return
+    if (enabled && (this.options.pause.paused || this.gazeOnly)) return
     if (enabled === this.enabled) return
     this.enabled = enabled
     const generation = ++this.generation
@@ -83,7 +88,7 @@ export class SpeechController {
     }
     if (parsed.data.live) {
       clearTimeout(this.timeout)
-      this.publish('listening', 'Listening locally. Transcripts are previews only.', true)
+      this.publish('listening', 'Listening locally. Dictated text needs confirmation.', true)
     } else if (this.status.micLive) this.fail()
   }
   fail(): void {

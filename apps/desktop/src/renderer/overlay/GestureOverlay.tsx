@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import type { OverlayState } from '@gestura/core'
+import { PhrasePalette } from './PhrasePalette'
 export function GestureOverlay(): JSX.Element {
   const [state, setState] = useState<OverlayState | null>(null)
   const [micLive, setMicLive] = useState(false)
@@ -27,11 +28,7 @@ export function GestureOverlay(): JSX.Element {
   const cursor = state.cursor
   return (
     <div className="gesture-overlay" aria-label="Gestura gesture feedback">
-      {micLive && (
-        <div className="mic-indicator" role="status">
-          Microphone live
-        </div>
-      )}
+      <PhrasePalette />
       <button
         className="pause-corner"
         style={{ width: state.pauseTargetSize, height: state.pauseTargetSize }}
@@ -39,6 +36,11 @@ export function GestureOverlay(): JSX.Element {
         onClick={() => window.gestura.send('system:toggle-pause', {})}
       >
         {state.paused ? 'Resume' : 'Pause'}
+        {micLive && (
+          <span className="mic-indicator" role="status">
+            Mic live
+          </span>
+        )}
         <progress max={1} value={state.pauseProgress} aria-label="Pause dwell progress" />
       </button>
       {state.paused && (

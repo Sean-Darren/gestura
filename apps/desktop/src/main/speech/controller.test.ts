@@ -30,6 +30,21 @@ function setup(): {
   return { controller, pause, options, receives }
 }
 describe('local speech lifecycle', () => {
+  it('gaze-only kills pending capture, ignores late permission/worker results, and blocks every restart', () => {
+    const { controller, options, receives } = setup()
+    controller.setEnabled(true)
+    controller.setGazeOnly(true)
+    receives[0]!({ kind: 'ready' })
+    controller.capture({ generation: 1, live: true, error: false })
+    controller.setEnabled(true)
+    expect(options.start).toHaveBeenCalledOnce()
+    expect(options.connect).not.toHaveBeenCalled()
+    expect(controller.state.micLive).toBe(false)
+    expect(options.stop).toHaveBeenCalledOnce()
+    controller.setGazeOnly(false)
+    expect(options.start).toHaveBeenCalledOnce()
+    controller.dispose()
+  })
   it('fails closed when an established microphone stream stops unexpectedly', () => {
     const { controller, options, receives } = setup()
     controller.setEnabled(true)

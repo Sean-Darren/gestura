@@ -3,6 +3,7 @@ import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
 import { EyeHysteresis, eyeScores } from './eyes'
 export * from './eyes'
+export * from './mouth-hold'
 export const packageName = '@gestura/gestures'
 export type Point = { x: number; y: number }
 export type SpeechState = 'silent' | 'speaking' | 'unknown'

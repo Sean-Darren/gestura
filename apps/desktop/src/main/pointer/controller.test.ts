@@ -11,7 +11,7 @@ import { createNativeInput } from '../native'
 import { MockNativeInput } from '../../../../../native/gestura-native/mock'
 import { testFrame } from '../../../../../packages/pointer/src/test-frames'
 import type { PointerMetrics } from '@gestura/core'
-function setup(): {
+function setup(interceptClick?: (point: { x: number; y: number }) => boolean): {
   controller: PointerController
   mock: MockNativeInput
   pause: PauseController
@@ -23,6 +23,7 @@ function setup(): {
     reports: PointerMetrics[] = []
   let time = 1000
   const controller = new PointerController({
+    ...(interceptClick ? { interceptClick } : {}),
     bridge: createNativeInput(pause, () => mock),
     pause,
     now: () => time,
@@ -208,10 +209,12 @@ describe('pointer dispatch', () => {
 })
 
 describe('gesture native dispatch', () => {
-  function calibrated(): ReturnType<typeof setup> & {
+  function calibrated(interceptClick?: (point: { x: number; y: number }) => boolean): ReturnType<
+    typeof setup
+  > & {
     sample(t: number, left?: number, right?: number, yaw?: number): void
   } {
-    const s = setup(),
+    const s = setup(interceptClick),
       session = scriptedWizard()
     completeBlinkPhase(session)
     completeTargets(session)
@@ -240,6 +243,26 @@ describe('gesture native dispatch', () => {
     expect(click).toBeGreaterThan(0)
     expect(s.mock.calls[click - 1]).toEqual({ method: 'moveTo', args: [frozen.x, frozen.y] })
     expect(s.mock.calls[click]?.args).toEqual(['left'])
+  })
+  it('consumes overlay blink selections before any OS click and gates voice clicks on pause/replay', () => {
+    let intercepted = 0
+    const s = calibrated(() => {
+      intercepted++
+      return true
+    })
+    for (let t = 1100; t <= 1700; t += 50) s.sample(t, 0.9)
+    s.sample(1750)
+    expect(intercepted).toBe(1)
+    expect(s.mock.calls.some((call) => call.method === 'click')).toBe(false)
+    s.controller.clickAtCursor('double-click')
+    expect(s.mock.calls.filter((call) => call.method === 'doubleClick')).toHaveLength(1)
+    s.pause.toggle()
+    s.controller.clickAtCursor('double-click')
+    s.pause.toggle()
+    s.controller.setSource('replaying')
+    s.controller.clickAtCursor('double-click')
+    expect(s.mock.calls.filter((call) => call.method === 'doubleClick')).toHaveLength(1)
+    s.controller.dispose()
   })
   it('releases drag on pause and never dispatches a paused click or move', () => {
     const s = calibrated()

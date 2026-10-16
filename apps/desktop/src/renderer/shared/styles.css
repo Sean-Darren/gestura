@@ -504,15 +504,151 @@ main {
   overflow-wrap: anywhere;
 }
 .mic-indicator {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  padding: 10px 14px;
-  background: #17211d;
+  display: block;
+  margin: 2px 0;
   color: #fff;
-  border: 2px solid #fff;
   pointer-events: none;
   font:
-    600 16px system-ui,
+    600 12px system-ui,
     sans-serif;
+}
+
+/* Large, stationary tiles support dwell; the green accent marks the active dwell only. */
+.phrase-overlay {
+  font:
+    16px/1.3 system-ui,
+    sans-serif;
+  color: #17211d;
+}
+.palette-tile {
+  position: fixed;
+  box-sizing: border-box;
+  padding: 6px;
+  margin: 0;
+  border: 2px solid #52695b;
+  border-radius: 6px;
+  background: #f4f6f3;
+  color: #17211d;
+  font:
+    600 15px/1.15 system-ui,
+    sans-serif;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  overflow: hidden;
+}
+.palette-tile.dwelling {
+  background: #d6e8d6;
+  border-color: #24563d;
+}
+.palette-tile[aria-pressed] {
+  font-size: 14px;
+}
+.palette-tile:disabled {
+  color: #526057;
+  background: #e3e7e2;
+  border-color: #6b776e;
+}
+.palette-tile:focus-visible {
+  outline: 3px solid #17211d;
+  outline-offset: 2px;
+}
+.palette-tile progress {
+  position: absolute;
+  bottom: 2px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: 6px;
+  accent-color: #24563d;
+}
+.proposal-card {
+  position: fixed;
+  left: 12px;
+  top: 84px;
+  width: min(720px, calc(100vw - 24px));
+  height: 122px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  background: #f4f6f3;
+  border: 2px solid #24563d;
+  overflow: auto;
+  height: 202px;
+}
+.proposal-card h2,
+.palette-heading h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.proposal-card h2 span {
+  font-weight: 400;
+}
+.proposal-card p {
+  font-size: 13px;
+  margin: 3px 0;
+}
+.proposal-target {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.proposal-card pre {
+  font:
+    15px/1.2 system-ui,
+    sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 4px 0;
+}
+.proposal-card progress {
+  width: 100%;
+  height: 6px;
+  accent-color: #24563d;
+}
+.mouth-countdown {
+  display: block;
+  font-size: 12px;
+}
+.palette-heading {
+  position: fixed;
+  left: 12px;
+  width: min(720px, calc(100vw - 24px));
+  padding: 4px 8px;
+  box-sizing: border-box;
+  background: #f4f6f3;
+}
+.palette-heading p {
+  font-size: 13px;
+  margin: 2px 0;
+}
+.palette-draft {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  max-height: 74px;
+  padding: 8px 0;
+}
+.palette-status {
+  position: fixed;
+  bottom: 4px;
+  right: 12px;
+  max-width: min(650px, calc(100vw - 24px));
+  font-size: 14px;
+  background: #f4f6f3;
+  padding: 8px;
+  border: 1px solid #52695b;
+}
+.palette-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+}
+.palette-control-grid button {
+  min-height: 64px;
+  overflow-wrap: anywhere;
+}
+.palette-control-copy textarea {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  box-sizing: border-box;
+  font: inherit;
 }

@@ -4,6 +4,7 @@ export function acceptsRendererChannel(role: RendererRole, channel: IpcChannel):
   if (channel === 'app:ready') return true
   if (role === 'speech') return channel === 'speech:capture'
   if (channel === 'system:toggle-pause') return role === 'control' || role === 'overlay'
+  if (channel === 'palette:control') return role === 'control' || role === 'overlay'
   if (role === 'vision')
     return (
       channel === 'vision:frame' || channel === 'vision:status' || channel === 'vision:diagnostics'

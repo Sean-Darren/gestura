@@ -4,6 +4,7 @@ import {
   DEFAULT_INTENT_CONFIG
 } from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
+import { DEFAULT_PALETTE_CONFIG } from '@gestura/core'
 import { DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -38,7 +39,8 @@ describe('local app config', () => {
       gestures: DEFAULT_GESTURE_CONFIG,
       snapping: DEFAULT_SNAP_CONFIG,
       speech: DEFAULT_SPEECH_CONFIG,
-      intent: DEFAULT_INTENT_CONFIG
+      intent: DEFAULT_INTENT_CONFIG,
+      palette: DEFAULT_PALETTE_CONFIG
     })
   })
 

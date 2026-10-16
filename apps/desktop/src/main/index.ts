@@ -1,5 +1,9 @@
 import { SnapController } from './snapping/controller'
 import { SpeechController } from './speech/controller'
+import { InputController } from './input/controller'
+import { PaletteStore } from './input/store'
+import { createNativeUiQueries } from './native/ui-elements'
+import { LISTENING_HOTKEY } from '@gestura/core'
 import { SpeechTransport } from './speech/transport'
 import { allowSpeechMicrophone } from './speech/permissions'
 import { SnapStore } from './snapping/store'
@@ -19,7 +23,8 @@ import {
   screen,
   session,
   protocol,
-  dialog
+  dialog,
+  clipboard
 } from 'electron'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -65,6 +70,8 @@ let visionCommand: 'start' | 'stop' = 'stop'
 let visionController: VisionController | undefined
 let snapController: SnapController | undefined
 let speechController: SpeechController | undefined
+let inputController: InputController | undefined
+const inputUi = createNativeUiQueries(pause)
 let speechTransport: SpeechTransport | undefined
 let benchController: BenchController | undefined
 let pointerController: PointerController | undefined
@@ -98,6 +105,7 @@ let currentReplayPrompt: IpcPayloadFor<'replay:prompt'> = {
 }
 let controlWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
+let overlayReady = false
 type RendererPage = 'control' | 'overlay' | 'vision' | 'speech'
 
 function localRendererOrigin(value: string | undefined): string | undefined {
@@ -209,6 +217,7 @@ function createOverlayWindow(): BrowserWindow {
     show: false,
     frame: false,
     transparent: true,
+    focusable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
@@ -216,7 +225,22 @@ function createOverlayWindow(): BrowserWindow {
   })
   overlayWindow.setAlwaysOnTop(true)
   overlayWindow.setIgnoreMouseEvents(true, { forward: true })
-  overlayWindow.once('ready-to-show', () => overlayWindow?.show())
+  overlayWindow.on('hide', () => inputController?.presentationLost())
+  overlayWindow.on('closed', () => inputController?.presentationLost())
+  overlayWindow.webContents.on('render-process-gone', () => {
+    overlayReady = false
+    inputController?.presentationLost()
+  })
+  overlayWindow.webContents.on('did-start-loading', () => {
+    overlayReady = false
+    if (
+      inputController?.state.pending ||
+      inputController?.state.busy ||
+      !['off', 'error'].includes(speechController?.state.state ?? 'off')
+    )
+      inputController?.presentationLost()
+  })
+  overlayWindow.once('ready-to-show', () => overlayWindow?.showInactive())
   return overlayWindow
 }
 
@@ -237,6 +261,14 @@ function createWindows(): void {
   createVisionWindow()
 }
 
+function setListening(enabled: boolean): void {
+  if (enabled && (!overlayReady || !overlayWindow?.isVisible())) {
+    inputController?.presentationLost()
+    return
+  }
+  speechController?.setEnabled(enabled)
+}
+
 function registerIpc(): void {
   ipcMain.on('gestura:ipc', (event, candidate: unknown) => {
     if (!trustedWebContents.has(event.sender.id)) return
@@ -244,8 +276,16 @@ function registerIpc(): void {
       const envelope = parseIpcEnvelope(candidate)
       const role = trustedWebContents.get(event.sender.id)
       if (!role || !acceptsRendererChannel(role, envelope.channel)) return
+      if (envelope.channel === 'palette:control') {
+        if (
+          envelope.payload.operation !== 'shown' ||
+          (role === 'overlay' && overlayWindow?.isVisible())
+        )
+          void inputController?.control(envelope.payload)
+        return
+      }
       if (envelope.channel === 'speech:control') {
-        speechController?.setEnabled(envelope.payload.enabled)
+        setListening(envelope.payload.enabled)
         return
       }
       if (envelope.channel === 'speech:capture') {
@@ -314,6 +354,12 @@ function registerIpc(): void {
         return
       }
       if (envelope.channel === 'app:ready') {
+        if (role === 'overlay') overlayReady = true
+        if (inputController && (role === 'control' || role === 'overlay'))
+          event.sender.send(
+            'gestura:ipc',
+            createIpcEnvelope('palette:state', inputController.state)
+          )
         if (role === 'speech') speechTransport?.ready()
         if (speechController && (role === 'control' || role === 'overlay'))
           event.sender.send(
@@ -557,20 +603,31 @@ app.whenReady().then(async () => {
     publish: (state) => sendControl('snap:settings', state),
     highlight: (bounds) => gestureOverlay?.setSnap(bounds),
     save: (value) => snapStore.save(value),
-    reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false
+    reserved: (point) => {
+      const scale = screen.getPrimaryDisplay().scaleFactor
+      return (
+        (gestureOverlay?.reservedPhysical(point) ?? false) ||
+        (inputController?.reserved({ x: point.x / scale, y: point.y / scale }) ?? false)
+      )
+    }
   })
   pointerController = new PointerController({
-    toggleListening: () =>
-      speechController?.setEnabled(
-        speechController.state.state === 'off' || speechController.state.state === 'error'
-      ),
+    toggleListening: (t) => inputController?.gestureToggleListening(t),
+    interceptClick: (point) => {
+      const scale = screen.getPrimaryDisplay().scaleFactor
+      return inputController?.click({ x: point.x / scale, y: point.y / scale }) ?? false
+    },
+    externalAction: () => inputController?.invalidateUndo(),
     snapping: snapController,
     bridge: nativeInput,
     pause,
     config: config.pointer,
     gestures: config.gestures,
     latencySample: (time, ms) => benchController?.sample(time, ms),
-    feedback: (state) => gestureOverlay?.feedback(state),
+    feedback: (state) => {
+      gestureOverlay?.feedback(state)
+      inputController?.headPoint(gestureOverlay?.snapshot.cursor ?? null)
+    },
     reserved: (point) => gestureOverlay?.reservedPhysical(point) ?? false,
     profile: config.pointerProfile,
     now: () => performance.timeOrigin + performance.now(),
@@ -630,22 +687,32 @@ app.whenReady().then(async () => {
     }
   })
   unsubscribePointer = visionController.frames.subscribe((frame) => {
+    inputController?.consume(
+      frame,
+      currentVisionStatus.state === 'running' && !calibrationController?.state.active
+    )
     calibrationController?.consume(frame)
     pointerController?.consume(frame)
   })
   screen.on('display-added', () => {
+    inputController?.displayChanged()
+    overlayWindow?.setBounds(screen.getPrimaryDisplay().bounds)
     void benchController?.control({ operation: 'cancel' })
     snapController?.reset()
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-removed', () => {
+    inputController?.displayChanged()
+    overlayWindow?.setBounds(screen.getPrimaryDisplay().bounds)
     void benchController?.control({ operation: 'cancel' })
     snapController?.reset()
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
   screen.on('display-metrics-changed', () => {
+    inputController?.displayChanged()
+    overlayWindow?.setBounds(screen.getPrimaryDisplay().bounds)
     void benchController?.control({ operation: 'cancel' })
     snapController?.reset()
     pointerController?.invalidateDisplay()
@@ -658,6 +725,7 @@ app.whenReady().then(async () => {
     gestureOverlay?.tick()
     snapController?.tick()
     benchController?.tick()
+    inputController?.tick(screen.getCursorScreenPoint())
   }, 100)
   registerPauseHotkey()
   registerIpc()
@@ -682,19 +750,53 @@ app.whenReady().then(async () => {
     connect: (generation) => speechTransport!.connect(generation),
     stop: () => speechTransport?.stop(),
     publish: (state) => {
+      inputController?.setSpeechState(!['off', 'error'].includes(state.state))
       for (const window of [controlWindow, overlayWindow])
         if (window && !window.isDestroyed())
           window.webContents.send('gestura:ipc', createIpcEnvelope('speech:state', state))
     },
     transcript: (transcript) => {
+      void inputController?.transcript(transcript)
       if (controlWindow && !controlWindow.isDestroyed())
         controlWindow.webContents.send(
           'gestura:ipc',
           createIpcEnvelope('speech:transcript', transcript)
         )
     },
-    activity: (state) => pointerController?.setSpeechState(state)
+    activity: (state) => {
+      pointerController?.setSpeechState(state)
+      inputController?.setSpeechState(
+        !['off', 'error'].includes(speechController?.state.state ?? 'off'),
+        state
+      )
+    }
   })
+  const paletteStore = new PaletteStore(app.getPath('userData'))
+  inputController = new InputController({
+    pause,
+    bridge: nativeInput,
+    settings: await paletteStore.load(config.palette),
+    gestures: config.gestures,
+    now: () => performance.timeOrigin + performance.now(),
+    foreground: () => inputUi.foregroundApp(),
+    display: () => screen.getPrimaryDisplay().bounds,
+    publish: (state) => {
+      for (const window of [controlWindow, overlayWindow])
+        if (window && !window.isDestroyed())
+          window.webContents.send('gestura:ipc', createIpcEnvelope('palette:state', state))
+    },
+    listening: setListening,
+    gazeOnly: (enabled) => speechController?.setGazeOnly(enabled),
+    dragging: (enabled) => pointerController?.setDragging(enabled),
+    pointerClick: (kind) => pointerController?.clickAtCursor(kind),
+    clipboard: () => clipboard.readText(),
+    save: (settings) => paletteStore.save(settings)
+  })
+  if (!globalShortcut.register(LISTENING_HOTKEY, () => inputController?.toggleListening()))
+    dialog.showErrorBox(
+      'Listening shortcut unavailable',
+      'Ctrl+Alt+L could not be registered. Use the overlay Listen tile or a held mouth gesture. The pause shortcut remains active.'
+    )
   createWindows()
   app.on('activate', () => {
     if (!controlWindow || controlWindow.isDestroyed()) createControlWindow()
@@ -708,6 +810,7 @@ app.on('window-all-closed', () => {
 let benchmarkFlushed = false
 let flushingBenchmark = false
 app.on('before-quit', (event) => {
+  inputController?.dispose()
   speechController?.dispose()
   if (benchController && !benchmarkFlushed) {
     event.preventDefault()
@@ -730,6 +833,7 @@ app.on('before-quit', (event) => {
   visionController?.dispose()
   nativeInput.dispose()
   nativeUi.dispose()
+  inputUi.dispose()
   globalShortcut.unregisterAll()
   trustedWebContents.clear()
   controlWindow = null

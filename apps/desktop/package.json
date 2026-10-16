@@ -15,6 +15,7 @@
   "dependencies": {
     "@gestura/core": "workspace:*",
     "@gestura/gestures": "workspace:*",
+    "@gestura/intent": "workspace:*",
     "@gestura/native": "workspace:*",
     "@gestura/pointer": "workspace:*",
     "@gestura/pointing-bench": "workspace:*",

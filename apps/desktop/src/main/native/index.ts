@@ -114,7 +114,7 @@ export function createNativeInput(
       const content = ConfirmedTextContentSchema.parse(confirmation.action.content)
       const age = performance.now() - confirmation.confirmedAt
       if (
-        confirmation.action.kind !== 'type-text' ||
+        !['type-text', 'dictation'].includes(confirmation.action.kind) ||
         content.text !== text ||
         age < 0 ||
         age >= 60_000 ||

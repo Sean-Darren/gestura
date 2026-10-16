@@ -83,6 +83,10 @@ export class ActionGate {
   }
 
   /** Trusted presentation code calls this after the proposal becomes visible. */
+  cancel(id: string): void {
+    this.proposals.delete(id)
+  }
+
   markShown(id: string): boolean {
     const proposal = this.proposals.get(id)
     const age = proposal ? this.now() - proposal.createdAt : -1

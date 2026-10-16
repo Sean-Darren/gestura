@@ -1,5 +1,6 @@
 import { PointerProfileSchema } from '../pointer'
 import { z } from 'zod'
+import { PaletteConfigSchema, DEFAULT_PALETTE_CONFIG } from '../palette'
 
 const NetworkHostSchema = z
   .string()
@@ -175,7 +176,8 @@ export const AppConfigSchema = z
     gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG),
     snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG),
     speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG),
-    intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG)
+    intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG),
+    palette: PaletteConfigSchema.default(DEFAULT_PALETTE_CONFIG)
   })
   .strict()
 

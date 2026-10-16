@@ -4,6 +4,7 @@ import {
   DEFAULT_INTENT_CONFIG
 } from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from './index'
+import { DEFAULT_PALETTE_CONFIG } from '../palette'
 import { describe, expect, it } from 'vitest'
 import {
   AppConfigSchema,
@@ -47,7 +48,8 @@ describe('app config', () => {
       gestures: DEFAULT_GESTURE_CONFIG,
       snapping: DEFAULT_SNAP_CONFIG,
       speech: DEFAULT_SPEECH_CONFIG,
-      intent: DEFAULT_INTENT_CONFIG
+      intent: DEFAULT_INTENT_CONFIG,
+      palette: DEFAULT_PALETTE_CONFIG
     })
   })
 

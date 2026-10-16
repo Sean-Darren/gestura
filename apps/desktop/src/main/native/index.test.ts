@@ -29,6 +29,22 @@ function setup(): {
 }
 
 describe('validated native bridge', () => {
+  it('accepts dictation only with a minted, matching, single-use confirmation', async () => {
+    const { bridge, mock } = setup()
+    const gate = new ActionGate()
+    const text = 'Hello 你好 =SUM(A1:A3)'
+    const action = gate.confirm(gate.propose({ kind: 'dictation', content: { text } }), {
+      kind: 'held-mouth-gesture'
+    })!
+    await expect(bridge.typeText(text, action)).resolves.toBe(true)
+    expect(
+      mock.calls
+        .filter((c) => c.method === 'typeText')
+        .map((c) => c.args[0])
+        .join('')
+    ).toBe(text)
+    await expect(bridge.typeText(text, action)).rejects.toThrow()
+  })
   it('rejects invalid arguments before loading the addon', async () => {
     const { bridge, load } = setup()
     expect(() => bridge.moveTo(Number.NaN, 0)).toThrow()

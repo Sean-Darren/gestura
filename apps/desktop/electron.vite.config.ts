@@ -38,6 +38,7 @@ export default defineConfig({
           '@gestura/replay',
           '@gestura/pointer',
           '@gestura/gestures',
+          '@gestura/intent',
           'zod'
         ]
       }
