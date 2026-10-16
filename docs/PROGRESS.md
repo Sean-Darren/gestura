@@ -987,3 +987,45 @@ Suggested commit message: feat(P3.3): add confirmed dictation and gaze-only phra
 
 Changes left uncommitted for human review, commit and push.
 
+
+## P4.1 — Excel bridge spike (2026-10-16)
+
+Status: implemented and verified on macOS (unit/integration/build); live Office host and Windows WebView2 checks pending.
+
+What changed
+- Added shared zod schemas in packages/core/src/excel.ts for context, samples, commands and events, plus ExcelConfigSchema (`enabled` default false, `port` 3510, `shareSampleValues` default false) in packages/core/src/config/index.ts.
+- Added a main-process loopback HTTPS+WebSocket bridge (apps/desktop/src/main/excel-bridge): token-paired WSS upgrade (constant-time compare), self-signed localhost cert persisted to userData/excel-dev-cert, HTML served with the pairing token injected server-side at a placeholder, validated event routing, and an ExcelBridge whose writeFormula accepts only a fresh, single-use ActionGate ConfirmedAction.
+- Scaffolded a minimal task-pane Office.js add-in (integrations/excel-addin) with manifest.xml, esbuild build, a pure context builder (header detection, column-type inference, 5-value sample cap) and a BridgeClient that validates inbound commands and auto-reconnects with capped backoff.
+- selectRange only highlights (range.select()); it never writes. writeFormula writes range.formulas to the target cell.
+
+Measured checks
+- pnpm lint and the three relevant workspace typechecks pass; 81 test files / 349 tests pass (6 skipped). excel-addin builds via esbuild.
+- Automated tests cover: token-paired connect, getContext/writeFormula/selectRange dispatch, invalid-command rejection, reconnect backoff, server token rejection, and bridge writeFormula rejecting non-confirmed/reused confirmations.
+
+Known issues / follow-ups
+- No live Office host is available here: real Ctrl+Z undo of an add-in write, both webviews opening a WSS socket to 127.0.0.1 with a trusted self-signed cert, and Windows WebView2 all remain manual checks. Documented fallback if a platform rejects loopback TLS: serve the taskpane over plain http on loopback, keeping the token requirement.
+- Header detection is text-shape heuristic; column types are coarse inference, not cell format metadata.
+
+Manual checks for the human
+- [ ] Trust the dev cert on macOS (Keychain) and Windows (cert store), then sideload the manifest and confirm the taskpane loads and shows "Connected to Gestura".
+- [ ] Confirm both WebKit and WebView2 open the WSS socket; if one fails, try the plain-http fallback and record the result.
+- [ ] In desktop Excel, run a confirmed writeFormula and press Ctrl+Z to verify it undoes the add-in write; confirm selectRange only changes selection and is not undoable.
+
+Open-question defaults used
+- Q15: sample values only behind a visible opt-in toggle, off by default (shareSampleValues).
+
+Suggested commit message
+feat(P4.1): add token-paired Excel add-in bridge
+
+Changed files (P4.1 manifest)
+- packages/core/src/excel.ts; packages/core/src/excel.test.ts; packages/core/src/index.ts
+- packages/core/src/config/index.ts; packages/core/src/config/index.test.ts
+- apps/desktop/package.json; apps/desktop/src/main/config.test.ts
+- apps/desktop/src/main/excel-bridge/index.ts; server.ts; server.test.ts; bridge.ts; bridge.test.ts; cert.ts; token.ts; token.test.ts
+- integrations/excel-addin/package.json; tsconfig.json; manifest.xml; build.mjs
+- integrations/excel-addin/src/index.ts; index.test.ts; context.ts; context.test.ts
+- integrations/excel-addin/src/taskpane/taskpane.html; taskpane.ts; office.ts; bridge-client.ts; bridge-client.test.ts
+- docs/PROGRESS.md; docs/decisions/0012-excel-bridge.md
+- pnpm-lock.yaml
+
+Changes left uncommitted for human review, commit and push. docs remains gitignored under the human's existing preference; include it deliberately when committing.

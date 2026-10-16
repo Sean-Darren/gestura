@@ -6,7 +6,11 @@ export interface Point {
   y: number
 }
 
-/** MediaPipe matrices are column-major. Positive yaw moves right; positive pitch moves down. */
+/**
+ * MediaPipe matrices are column-major. The unmirrored camera flips subject left/right,
+ * so yaw is negated here to restore subject-relative direction: positive yaw moves right;
+ * positive pitch moves down (pitch is already subject-relative, so it is not negated).
+ */
 export function headPose(matrix: Float32Array): Pose {
   if (matrix.length !== 16 || !matrix.every(Number.isFinite)) throw new Error('Invalid face matrix')
   const x = Math.hypot(matrix[0]!, matrix[1]!, matrix[2]!)
@@ -18,7 +22,7 @@ export function headPose(matrix: Float32Array): Pose {
   const r22 = matrix[10]! / z
   const degrees = 180 / Math.PI
   return {
-    yaw: Math.atan2(r02, r22) * degrees,
+    yaw: -Math.atan2(r02, r22) * degrees,
     pitch: Math.atan2(-r12, Math.hypot(r02, r22)) * degrees
   }
 }

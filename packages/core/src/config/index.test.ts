@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AppConfigSchema,
   DEFAULT_CONFIG,
+  DEFAULT_EXCEL_CONFIG,
   DEFAULT_POINTER_CONFIG,
   PointerConfigSchema,
   DEFAULT_UI_QUERY_CONFIG,
@@ -49,7 +50,8 @@ describe('app config', () => {
       snapping: DEFAULT_SNAP_CONFIG,
       speech: DEFAULT_SPEECH_CONFIG,
       intent: DEFAULT_INTENT_CONFIG,
-      palette: DEFAULT_PALETTE_CONFIG
+      palette: DEFAULT_PALETTE_CONFIG,
+      excel: DEFAULT_EXCEL_CONFIG
     })
   })
 

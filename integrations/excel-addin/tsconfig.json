@@ -4,6 +4,6 @@
     "src/**/*.ts"
   ],
   "compilerOptions": {
-    "types": []
+    "types": ["office-js"]
   }
 }

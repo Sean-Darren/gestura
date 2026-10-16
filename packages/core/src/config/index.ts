@@ -167,6 +167,18 @@ export const IntentConfigSchema = z
 export type IntentConfig = z.infer<typeof IntentConfigSchema>
 export const DEFAULT_INTENT_CONFIG = IntentConfigSchema.parse({})
 
+export const ExcelConfigSchema = z
+  .object({
+    // Loopback bridge server is opt-in during the P4.1 spike; P4.2/P4.3 flip this on.
+    enabled: z.boolean().default(false),
+    port: z.number().int().min(1024).max(65535).default(3510),
+    // Q15: sample cell values leave the device only behind a visible, opt-in toggle.
+    shareSampleValues: z.boolean().default(false)
+  })
+  .strict()
+export type ExcelConfig = z.infer<typeof ExcelConfigSchema>
+export const DEFAULT_EXCEL_CONFIG = ExcelConfigSchema.parse({})
+
 export const AppConfigSchema = z
   .object({
     network: NetworkConfigSchema.default({ allowlist: [] }),
@@ -177,7 +189,8 @@ export const AppConfigSchema = z
     snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG),
     speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG),
     intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG),
-    palette: PaletteConfigSchema.default(DEFAULT_PALETTE_CONFIG)
+    palette: PaletteConfigSchema.default(DEFAULT_PALETTE_CONFIG),
+    excel: ExcelConfigSchema.default(DEFAULT_EXCEL_CONFIG)
   })
   .strict()
 

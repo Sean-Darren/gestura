@@ -5,7 +5,7 @@ import {
 } from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import { DEFAULT_PALETTE_CONFIG } from '@gestura/core'
-import { DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
+import { DEFAULT_EXCEL_CONFIG, DEFAULT_POINTER_CONFIG } from '@gestura/core/config'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,7 +40,8 @@ describe('local app config', () => {
       snapping: DEFAULT_SNAP_CONFIG,
       speech: DEFAULT_SPEECH_CONFIG,
       intent: DEFAULT_INTENT_CONFIG,
-      palette: DEFAULT_PALETTE_CONFIG
+      palette: DEFAULT_PALETTE_CONFIG,
+      excel: DEFAULT_EXCEL_CONFIG
     })
   })
 

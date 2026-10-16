@@ -41,6 +41,8 @@ import { installNetworkPolicy } from './network'
 import { createBlockedRequestLogger } from './network/local-log'
 import { pauseAccelerator } from './pause'
 import { pause, nativeInput, nativeUi } from './native/runtime'
+import { startExcelBridge } from './excel-bridge'
+import type { ExcelBridgeHandle } from './excel-bridge'
 
 let benchmarkRequested = process.argv.includes('--pointing-bench')
 const primaryInstance = app.requestSingleInstanceLock()
@@ -71,6 +73,7 @@ let visionController: VisionController | undefined
 let snapController: SnapController | undefined
 let speechController: SpeechController | undefined
 let inputController: InputController | undefined
+let excelBridgeHandle: ExcelBridgeHandle | undefined
 const inputUi = createNativeUiQueries(pause)
 let speechTransport: SpeechTransport | undefined
 let benchController: BenchController | undefined
@@ -797,6 +800,17 @@ app.whenReady().then(async () => {
       'Listening shortcut unavailable',
       'Ctrl+Alt+L could not be registered. Use the overlay Listen tile or a held mouth gesture. The pause shortcut remains active.'
     )
+  if (config.excel.enabled) {
+    const excelStaticDir = app.isPackaged
+      ? join(process.resourcesPath, 'excel-addin')
+      : join(app.getAppPath(), '..', '..', 'integrations', 'excel-addin', 'dist')
+    excelBridgeHandle = await startExcelBridge({
+      userDataDir: app.getPath('userData'),
+      staticDir: excelStaticDir,
+      port: config.excel.port,
+      shareSampleValues: config.excel.shareSampleValues
+    })
+  }
   createWindows()
   app.on('activate', () => {
     if (!controlWindow || controlWindow.isDestroyed()) createControlWindow()
@@ -834,6 +848,8 @@ app.on('before-quit', (event) => {
   nativeInput.dispose()
   nativeUi.dispose()
   inputUi.dispose()
+  excelBridgeHandle?.bridge.dispose()
+  void excelBridgeHandle?.server.close()
   globalShortcut.unregisterAll()
   trustedWebContents.clear()
   controlWindow = null

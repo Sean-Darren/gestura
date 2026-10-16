@@ -1,11 +1,15 @@
 import type { FaceFrame } from '@gestura/core'
 
-/** Synthetic R_y(yaw) R_x(pitch), stored column-major like MediaPipe. */
+/**
+ * Synthetic R_y(yaw) R_x(pitch) matching MediaPipe's physical convention (positive yaw =
+ * subject turns right), stored column-major. The yaw sine is negated so `headPose` recovers
+ * `yaw`/`pitch` from this matrix.
+ */
 export function rotation(yaw: number, pitch: number): Float32Array {
   const y = (yaw * Math.PI) / 180,
     p = (pitch * Math.PI) / 180
   const cy = Math.cos(y),
-    sy = Math.sin(y),
+    sy = -Math.sin(y),
     cp = Math.cos(p),
     sp = Math.sin(p)
   return new Float32Array([

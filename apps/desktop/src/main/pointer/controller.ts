@@ -284,8 +284,12 @@ export class PointerController {
       return
     }
     try {
-      if (!this.options.bridge.hasInputPermission())
-        throw new Error('Accessibility/input permission is required; grant it in system settings')
+      if (!this.options.bridge.hasInputPermission()) {
+        this.options.bridge.requestInputPermission()
+        throw new Error(
+          'Accessibility permission requested; approve this app in System Settings → Privacy & Security → Accessibility, then re-enable pointer control'
+        )
+      }
       const primary = this.options.bridge.getDisplays()?.find((display) => display.primary)
       if (!primary) throw new Error('Primary display is unavailable')
       this.display = PointerDisplaySchema.parse({

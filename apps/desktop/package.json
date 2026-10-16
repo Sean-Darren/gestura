@@ -24,12 +24,15 @@
     "opencc-js": "1.4.2",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "selfsigned": "^2.4.1",
     "sherpa-onnx-node": "1.13.8",
+    "ws": "^8.18.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "44.7.1",
     "electron-vite": "^5.0.0",
