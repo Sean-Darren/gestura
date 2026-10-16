@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
+import { ConfirmationEvidenceSchema } from '@gestura/core'
+export type { ConfirmationEvidence } from '@gestura/core'
 
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
@@ -7,10 +9,6 @@ export type JsonValue =
 export type ProposedAction = {
   kind: string
   content: JsonValue
-}
-
-export type ConfirmationEvidence = {
-  kind: 'voice-confirm' | 'held-mouth-gesture' | 'blink' | 'wink' | 'dwell' | string
 }
 
 const confirmedActionBrand: unique symbol = Symbol('ConfirmedAction')
@@ -27,6 +25,7 @@ type StoredProposal = {
   action: ProposedAction
   hash: string
   createdAt: number
+  shownAt?: number
 }
 
 function canonicalize(value: JsonValue): string {
@@ -68,7 +67,10 @@ function deepFreeze<T>(value: T): T {
 export class ActionGate {
   private readonly proposals = new Map<string, StoredProposal>()
 
-  constructor(private readonly now: () => number = () => performance.now()) {}
+  constructor(
+    private readonly now: () => number = () => performance.now(),
+    private readonly epochNow: () => number = () => performance.timeOrigin + performance.now()
+  ) {}
 
   propose(action: ProposedAction): string {
     const createdAt = this.now()
@@ -80,7 +82,22 @@ export class ActionGate {
     return id
   }
 
-  confirm(id: string, evidence: ConfirmationEvidence): ConfirmedAction | null {
+  /** Trusted presentation code calls this after the proposal becomes visible. */
+  cancel(id: string): void {
+    this.proposals.delete(id)
+  }
+
+  markShown(id: string): boolean {
+    const proposal = this.proposals.get(id)
+    const age = proposal ? this.now() - proposal.createdAt : -1
+    const shownAt = this.epochNow()
+    if (!proposal || age < 0 || age >= 60_000 || !Number.isFinite(shownAt) || shownAt < 0)
+      return false
+    proposal.shownAt = shownAt
+    return true
+  }
+
+  confirm(id: string, evidence: unknown): ConfirmedAction | null {
     const proposal = this.proposals.get(id)
     if (!proposal) return null
 
@@ -90,12 +107,19 @@ export class ActionGate {
       this.proposals.delete(id)
       return null
     }
-    if (
-      typeof evidence !== 'object' ||
-      evidence === null ||
-      (evidence.kind !== 'voice-confirm' && evidence.kind !== 'held-mouth-gesture')
-    )
-      return null
+    const parsedEvidence = ConfirmationEvidenceSchema.safeParse(evidence)
+    if (!parsedEvidence.success) return null
+    if (parsedEvidence.data.kind === 'voice-confirm') {
+      const started = parsedEvidence.data.tSpeechStart
+      const epochNow = this.epochNow()
+      if (
+        proposal.shownAt === undefined ||
+        started <= proposal.shownAt ||
+        !Number.isFinite(epochNow) ||
+        started > epochNow
+      )
+        return null
+    }
 
     let currentHash: string
     try {

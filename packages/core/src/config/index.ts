@@ -1,5 +1,6 @@
 import { PointerProfileSchema } from '../pointer'
 import { z } from 'zod'
+import { PaletteConfigSchema, DEFAULT_PALETTE_CONFIG } from '../palette'
 
 const NetworkHostSchema = z
   .string()
@@ -144,6 +145,28 @@ export const SnapConfigSchema = z
 export type SnapConfig = z.infer<typeof SnapConfigSchema>
 export const DEFAULT_SNAP_CONFIG = SnapConfigSchema.parse({})
 
+export const SpeechConfigSchema = z
+  .object({
+    threshold: z.number().min(0.1).max(0.9).default(0.5),
+    minSilenceDuration: z.number().min(0.25).max(2).default(0.5),
+    minSpeechDuration: z.number().min(0.1).max(1).default(0.25),
+    maxSpeechDuration: z.number().min(2).max(30).default(15),
+    numThreads: z.number().int().min(1).max(4).default(2)
+  })
+  .strict()
+export type SpeechConfig = z.infer<typeof SpeechConfigSchema>
+export const DEFAULT_SPEECH_CONFIG = SpeechConfigSchema.parse({})
+
+export const IntentConfigSchema = z
+  .object({
+    fuzzyThreshold: z.number().min(0.7).max(1).default(0.86),
+    ambiguityMargin: z.number().min(0.01).max(0.5).default(0.08),
+    maxInputLength: z.number().int().min(100).max(16000).default(2000)
+  })
+  .strict()
+export type IntentConfig = z.infer<typeof IntentConfigSchema>
+export const DEFAULT_INTENT_CONFIG = IntentConfigSchema.parse({})
+
 export const AppConfigSchema = z
   .object({
     network: NetworkConfigSchema.default({ allowlist: [] }),
@@ -151,7 +174,10 @@ export const AppConfigSchema = z
     pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
     pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } }),
     gestures: GestureConfigSchema.default(DEFAULT_GESTURE_CONFIG),
-    snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG)
+    snapping: SnapConfigSchema.default(DEFAULT_SNAP_CONFIG),
+    speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG),
+    intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG),
+    palette: PaletteConfigSchema.default(DEFAULT_PALETTE_CONFIG)
   })
   .strict()
 

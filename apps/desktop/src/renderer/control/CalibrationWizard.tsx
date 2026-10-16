@@ -1,4 +1,5 @@
 import { SnapSettings } from './SnapSettings'
+import { SpeechSettings } from './SpeechSettings'
 import { PointingBench } from './PointingBench'
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
@@ -111,6 +112,7 @@ export function CalibrationControl(): JSX.Element {
             <p role="status">{state.message}</p>
           </section>
           <SnapSettings />
+          <SpeechSettings />
           <DebugPanel gazeEnabled={state.gazeEnabled} />
         </div>
       </>

@@ -18,3 +18,4 @@ models/*
 .env.local
 docs
 apps/desktop/resources/vision/
+apps/desktop/resources/speech/

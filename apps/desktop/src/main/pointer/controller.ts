@@ -84,6 +84,8 @@ export class PointerController {
         >
       ): void
       reserved?(point: { x: number; y: number }): boolean
+      interceptClick?(point: { x: number; y: number }): boolean
+      externalAction?(): void
       snapping?: {
         update(
           point: { x: number; y: number },
@@ -94,7 +96,7 @@ export class PointerController {
         click(point: { x: number; y: number }): { x: number; y: number }
         reset(): void
       }
-      toggleListening?(): void
+      toggleListening?(t: number): void
     }
   ) {
     this.gestureConfig = GestureConfigSchema.parse(options.gestures ?? DEFAULT_GESTURE_CONFIG)
@@ -151,7 +153,7 @@ export class PointerController {
       0,
       mode === 'off'
         ? 'Click gestures are off'
-        : `${mode} click mode; jaw listening awaits Phase 3 speech state`
+        : `${mode} click mode; use Local speech to start listening`
     )
   }
   setSpeechState(state: SpeechState): void {
@@ -177,10 +179,12 @@ export class PointerController {
     }
     if (!this.enabled || this.replay || this.options.pause.paused || !this.display) return
     if (event.kind === 'click' || event.kind === 'mouseDown') {
+      if (event.kind === 'click' && this.options.interceptClick?.(event)) return
       if (this.options.reserved?.(event)) return
       const destination =
         event.kind === 'click' ? (this.options.snapping?.click(event) ?? event) : event
       if (this.options.reserved?.(destination)) return
+      this.options.externalAction?.()
       const point = toNativePoint(destination.x, destination.y, this.display)
       if (!this.options.bridge.moveTo(point.x, point.y)) return
       if (event.kind === 'click') {
@@ -188,7 +192,7 @@ export class PointerController {
           this.lastClick = { x: destination.x, y: destination.y, button: event.button, t: event.t }
       } else this.options.bridge.mouseDown('left')
     }
-    if (event.kind === 'toggleListening') this.options.toggleListening?.()
+    if (event.kind === 'toggleListening') this.options.toggleListening?.(event.t)
     // toggleListening remains an internal Phase 3 event; it never confirms an ActionGate proposal.
   }
   private feedback(frozen: boolean, dwellProgress: number, message = ''): void {
@@ -212,6 +216,24 @@ export class PointerController {
   }
   get metrics(): PointerMetrics {
     return this.last
+  }
+  clickAtCursor(kind: 'click' | 'double-click' | 'right-click'): void {
+    if (
+      !this.enabled ||
+      this.replay ||
+      this.options.pause.paused ||
+      !this.display ||
+      !this.lastPoint
+    )
+      return
+    if (this.options.reserved?.(this.lastPoint)) return
+    const destination = this.options.snapping?.click(this.lastPoint) ?? this.lastPoint
+    if (this.options.reserved?.(destination)) return
+    const point = toNativePoint(destination.x, destination.y, this.display)
+    if (!this.options.bridge.moveTo(point.x, point.y)) return
+    this.options.externalAction?.()
+    if (kind === 'double-click') this.options.bridge.doubleClick()
+    else this.options.bridge.click(kind === 'right-click' ? 'right' : 'left')
   }
   private reset(): void {
     if (this.gesture)

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { bundleVisionAssets } from '../../scripts/model-assets.mjs'
+import { bundleSpeechAssets } from '../../scripts/speech-assets.mjs'
 
 const appRoot = fileURLToPath(new URL('.', import.meta.url))
 
@@ -16,6 +17,7 @@ export default defineConfig({
         name: 'gestura-local-vision-assets',
         buildStart: async () => {
           await bundleVisionAssets()
+          await bundleSpeechAssets()
         }
       }
     ],
@@ -23,6 +25,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(appRoot, 'src/main/index.ts'),
+          speech: resolve(appRoot, 'src/utility/speech/index.ts'),
           'native-demo': resolve(appRoot, 'src/main/native/demo.ts'),
           'native-bench': resolve(appRoot, 'src/main/native/benchmark.ts'),
           'native-ui-probe': resolve(appRoot, 'src/main/native/ui-probe.ts')
@@ -35,6 +38,7 @@ export default defineConfig({
           '@gestura/replay',
           '@gestura/pointer',
           '@gestura/gestures',
+          '@gestura/intent',
           'zod'
         ]
       }
@@ -64,7 +68,8 @@ export default defineConfig({
         input: {
           control: resolve(appRoot, 'src/renderer/control/index.html'),
           overlay: resolve(appRoot, 'src/renderer/overlay/index.html'),
-          vision: resolve(appRoot, 'src/renderer/vision/index.html')
+          vision: resolve(appRoot, 'src/renderer/vision/index.html'),
+          speech: resolve(appRoot, 'src/renderer/speech/index.html')
         }
       }
     }

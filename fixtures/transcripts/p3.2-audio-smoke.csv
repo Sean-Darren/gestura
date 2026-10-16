@@ -1,0 +1,2 @@
+id,utterance,expected intent,slots,lang,context,pending,audio
+upstream-yue-noncommand,呢幾個字都表達唔到我想講嘅意思,suggestions,{},yue,other,false,sherpa/yue.wav

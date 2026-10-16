@@ -1,4 +1,11 @@
 import { SnapControlSchema, SnapSettingsSchema } from './snap'
+import { PaletteControlSchema, PaletteStateSchema } from './palette'
+import {
+  SpeechControlSchema,
+  SpeechStateSchema,
+  SpeechCaptureStatusSchema,
+  TranscriptSchema
+} from './speech'
 import { BenchControlSchema, BenchStateSchema } from './pointing-bench'
 import { GestureControlSchema, OverlayStateSchema } from './gestures'
 import {
@@ -19,6 +26,12 @@ import {
 } from './face-frame'
 
 export const IPC_CHANNELS = [
+  'palette:control',
+  'palette:state',
+  'speech:control',
+  'speech:state',
+  'speech:capture',
+  'speech:transcript',
   'bench:control',
   'bench:state',
   'snap:control',
@@ -45,6 +58,12 @@ export const IPC_CHANNELS = [
 export const IPC_TRANSPORT_CHANNEL = 'gestura:ipc'
 
 export const IPC_PAYLOAD_SCHEMAS = {
+  'palette:control': PaletteControlSchema,
+  'palette:state': PaletteStateSchema,
+  'speech:control': SpeechControlSchema,
+  'speech:state': SpeechStateSchema,
+  'speech:capture': SpeechCaptureStatusSchema,
+  'speech:transcript': TranscriptSchema,
   'bench:control': BenchControlSchema,
   'bench:state': BenchStateSchema,
   'snap:control': SnapControlSchema,
@@ -125,3 +144,7 @@ export * from './gestures'
 export * from './pointing-bench'
 
 export * from './snap'
+export * from './speech'
+export * from './intent'
+export * from './voice-bench'
+export * from './palette'

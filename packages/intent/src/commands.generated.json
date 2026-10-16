@@ -1,0 +1,372 @@
+{
+  "version": 1,
+  "commands": [
+    {
+      "id": "click",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "click",
+          "left click",
+          "click here"
+        ],
+        "yue": [
+          "撳一下",
+          "左擊",
+          "撳呢度"
+        ],
+        "mixed": [
+          "click 一下",
+          "幫我 click"
+        ]
+      }
+    },
+    {
+      "id": "double-click",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "double click",
+          "double click here"
+        ],
+        "yue": [
+          "撳兩下",
+          "連撳兩下",
+          "雙擊"
+        ],
+        "mixed": [
+          "double click 呢度",
+          "幫我 double click"
+        ]
+      }
+    },
+    {
+      "id": "right-click",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "right click",
+          "open context menu"
+        ],
+        "yue": [
+          "右擊",
+          "撳右掣",
+          "開右鍵選單"
+        ],
+        "mixed": [
+          "right click 呢度",
+          "幫我 right click"
+        ]
+      }
+    },
+    {
+      "id": "drag-on",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "start dragging",
+          "drag on",
+          "hold mouse down"
+        ],
+        "yue": [
+          "開始拖曳",
+          "開始拖",
+          "撳住滑鼠"
+        ],
+        "mixed": [
+          "開 drag",
+          "drag on 啦"
+        ]
+      }
+    },
+    {
+      "id": "drag-off",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "stop dragging",
+          "drag off",
+          "release mouse"
+        ],
+        "yue": [
+          "停止拖曳",
+          "停止拖",
+          "放開滑鼠"
+        ],
+        "mixed": [
+          "關 drag",
+          "drag off 啦"
+        ]
+      }
+    },
+    {
+      "id": "scroll-up",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "scroll up",
+          "page up"
+        ],
+        "yue": [
+          "向上捲",
+          "向上碌",
+          "碌上去"
+        ],
+        "mixed": [
+          "scroll 上去",
+          "幫我 scroll up"
+        ]
+      }
+    },
+    {
+      "id": "scroll-down",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "scroll down",
+          "page down"
+        ],
+        "yue": [
+          "向下捲",
+          "向下碌",
+          "碌落去"
+        ],
+        "mixed": [
+          "scroll 落去",
+          "幫我 scroll down"
+        ]
+      }
+    },
+    {
+      "id": "pause",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "pause",
+          "pause input",
+          "stop input"
+        ],
+        "yue": [
+          "暫停",
+          "暫停輸入",
+          "停一停"
+        ],
+        "mixed": [
+          "pause 一陣",
+          "幫我 pause"
+        ]
+      }
+    },
+    {
+      "id": "resume",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "resume",
+          "resume input",
+          "continue input"
+        ],
+        "yue": [
+          "繼續",
+          "恢復輸入",
+          "繼續輸入"
+        ],
+        "mixed": [
+          "resume 啦",
+          "幫我 resume"
+        ]
+      }
+    },
+    {
+      "id": "open-phrase-palette",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "open phrase palette",
+          "show phrases"
+        ],
+        "yue": [
+          "開短語選單",
+          "開常用語",
+          "顯示短語"
+        ],
+        "mixed": [
+          "開 phrase palette",
+          "show 常用語"
+        ]
+      }
+    },
+    {
+      "id": "dictation-on",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "start dictation",
+          "dictation on"
+        ],
+        "yue": [
+          "開始聽寫",
+          "開聽寫"
+        ],
+        "mixed": [
+          "開 dictation",
+          "dictation on 啦"
+        ]
+      }
+    },
+    {
+      "id": "dictation-off",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "stop dictation",
+          "dictation off"
+        ],
+        "yue": [
+          "停止聽寫",
+          "關聽寫"
+        ],
+        "mixed": [
+          "關 dictation",
+          "dictation off 啦"
+        ]
+      }
+    },
+    {
+      "id": "undo-that",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "undo that",
+          "undo last action"
+        ],
+        "yue": [
+          "復原上一步",
+          "撤銷上一步",
+          "取消上一步"
+        ],
+        "mixed": [
+          "undo 上一步",
+          "幫我 undo"
+        ]
+      }
+    },
+    {
+      "id": "go-to",
+      "slots": {
+        "range": "range"
+      },
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "go to {range}",
+          "select {range}",
+          "go to cell {range}",
+          "select range {range}"
+        ],
+        "yue": [
+          "揀 {range}",
+          "去 {range}",
+          "選取 {range}",
+          "揀儲存格 {range}"
+        ],
+        "mixed": [
+          "幫我 select {range}",
+          "go to {range} 啦",
+          "揀 cell {range}"
+        ]
+      }
+    },
+    {
+      "id": "confirm",
+      "slots": {},
+      "pendingOnly": true,
+      "exactOnly": true,
+      "phrasings": {
+        "en": [
+          "confirm",
+          "confirm action"
+        ],
+        "yue": [
+          "確認",
+          "確認操作"
+        ],
+        "mixed": [
+          "confirm 啦",
+          "確認 action"
+        ]
+      }
+    },
+    {
+      "id": "cancel",
+      "slots": {},
+      "pendingOnly": true,
+      "exactOnly": true,
+      "phrasings": {
+        "en": [
+          "cancel",
+          "cancel action"
+        ],
+        "yue": [
+          "取消",
+          "取消操作",
+          "唔要呢個"
+        ],
+        "mixed": [
+          "cancel 啦",
+          "取消 action"
+        ]
+      }
+    },
+    {
+      "id": "formula-request",
+      "slots": {
+        "request": "free-text"
+      },
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "create a formula for {request}",
+          "formula for {request}",
+          "write a formula to {request}"
+        ],
+        "yue": [
+          "幫我寫公式 {request}",
+          "寫條公式 {request}"
+        ],
+        "mixed": [
+          "幫我 formula {request}",
+          "write 公式 {request}"
+        ]
+      }
+    }
+  ]
+}
