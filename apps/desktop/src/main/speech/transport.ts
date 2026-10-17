@@ -21,19 +21,28 @@ export class SpeechTransport {
   }
   start(generation: number, receive: (value: unknown) => void): void {
     this.stop()
+    console.error('[transport] creating capture window')
     this.capture = this.options.createCapture()
+    console.error('[transport] capture window created, id:', this.capture.id)
     this.capture.webContents.once('render-process-gone', () => receive({ kind: 'error' }))
     this.capture.webContents.once('did-fail-load', () => receive({ kind: 'error' }))
+    const modulePath = join(__dirname, 'speech.js')
+    console.error('[transport] forking worker:', modulePath)
+    console.error('[transport] directory:', this.options.directory)
     const worker = utilityProcess.fork(
-      join(__dirname, 'speech.js'),
+      modulePath,
       [this.options.directory, JSON.stringify(this.options.config)],
       {
         serviceName: 'Gestura local speech',
-        stdio: 'ignore'
+        stdio: 'pipe'
       }
     )
+    console.error('[transport] worker forked, pid:', worker.pid)
     this.worker = worker
     worker.on('message', receive)
+    worker.stderr?.on('data', (chunk: Buffer) => {
+      console.error('[speech worker stderr]', chunk.toString())
+    })
     worker.once('exit', () => {
       if (this.worker === worker) receive({ kind: 'error' })
     })

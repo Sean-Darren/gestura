@@ -37,6 +37,10 @@ unsafe extern "C" {
     fn CFArrayGetTypeID() -> usize;
     fn CFArrayGetCount(value: CFTypeRef) -> isize;
     fn CFArrayGetValueAtIndex(value: CFTypeRef, index: isize) -> CFTypeRef;
+    fn CFDictionaryGetTypeID() -> usize;
+    fn CFDictionaryGetValue(dict: CFTypeRef, key: CFTypeRef) -> CFTypeRef;
+    fn CFNumberGetTypeID() -> usize;
+    fn CFNumberGetValue(number: CFTypeRef, kind: u32, value: *mut c_void) -> bool;
     fn CFRetain(value: CFTypeRef) -> CFTypeRef;
     fn CFBundleCreate(allocator: CFTypeRef, url: CFTypeRef) -> CFTypeRef;
     fn CFBundleGetIdentifier(bundle: CFTypeRef) -> CFTypeRef;
@@ -45,6 +49,13 @@ unsafe extern "C" {
 unsafe extern "C" {
     fn proc_pidpath(pid: i32, buffer: *mut c_void, size: u32) -> i32;
 }
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    // WindowServer query; never re-enters our own process's accessibility tree.
+    fn CGWindowListCopyWindowInfo(option: u32, relative_to_window: u32) -> CFTypeRef;
+}
+const K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY: u32 = 1 << 0;
+const K_CF_NUMBER_FLOAT64: u32 = 6;
 struct Owned(CFTypeRef);
 impl Drop for Owned {
     fn drop(&mut self) {
@@ -107,6 +118,7 @@ impl Owned {
 }
 pub struct PlatformUi {
     system: Owned,
+    own_pid: u32,
 }
 impl PlatformUi {
     pub fn new() -> InputResult<Self> {
@@ -119,7 +131,88 @@ impl PlatformUi {
         }
         Ok(Self {
             system: Owned(pointer),
+            own_pid: std::process::id(),
         })
+    }
+    fn is_own_process(&self, ax: &Owned) -> bool {
+        let mut pid: i32 = 0;
+        let status = unsafe { AXUIElementGetPid(ax.0, &mut pid) };
+        status == 0 && pid as u32 == self.own_pid
+    }
+    // The AX hit-test re-enters Electron when the cursor sits on our own control
+    // window, crashing V8 on this background thread. Guard against it by checking
+    // our own on-screen window bounds (a pure WindowServer query) first.
+    fn is_over_own_interactive_window(&self, x: f64, y: f64) -> bool {
+        let list = unsafe {
+            CGWindowListCopyWindowInfo(K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY, 0)
+        };
+        if list.is_null() {
+            return false;
+        }
+        let list = Owned(list);
+        if unsafe { CFGetTypeID(list.0) } != unsafe { CFArrayGetTypeID() } {
+            return false;
+        }
+        let owner_key = CFString::new("kCGWindowOwnerPID");
+        let layer_key = CFString::new("kCGWindowLayer");
+        let bounds_key = CFString::new("kCGWindowBounds");
+        let (x_key, y_key, w_key, h_key) = (
+            CFString::new("X"),
+            CFString::new("Y"),
+            CFString::new("Width"),
+            CFString::new("Height"),
+        );
+        let read_num = |value: CFTypeRef| -> Option<f64> {
+            if value.is_null() || unsafe { CFGetTypeID(value) } != unsafe { CFNumberGetTypeID() } {
+                return None;
+            }
+            let mut n = 0.0f64;
+            unsafe { CFNumberGetValue(value, K_CF_NUMBER_FLOAT64, (&mut n as *mut f64).cast()) }
+                .then_some(n)
+        };
+        let count = unsafe { CFArrayGetCount(list.0) }.max(0) as usize;
+        for i in 0..count {
+            let dict = unsafe { CFArrayGetValueAtIndex(list.0, i as isize) };
+            if dict.is_null() || unsafe { CFGetTypeID(dict) } != unsafe { CFDictionaryGetTypeID() }
+            {
+                continue;
+            }
+            let owner = read_num(unsafe {
+                CFDictionaryGetValue(dict, owner_key.as_CFTypeRef())
+            });
+            if owner.map(|p| p as u32) != Some(self.own_pid) {
+                continue;
+            }
+            // Skip always-on-top windows: the full-screen overlay ignores mouse
+            // events and is never a snap target; only the layer-0 control window
+            // triggers the re-entrant hit-test.
+            let layer = read_num(unsafe {
+                CFDictionaryGetValue(dict, layer_key.as_CFTypeRef())
+            });
+            if layer.map(|l| l as i32) != Some(0) {
+                continue;
+            }
+            let bounds = unsafe { CFDictionaryGetValue(dict, bounds_key.as_CFTypeRef()) };
+            if bounds.is_null() || unsafe { CFGetTypeID(bounds) } != unsafe { CFDictionaryGetTypeID() }
+            {
+                continue;
+            }
+            let read_bounds = |key: &CFString| {
+                read_num(unsafe { CFDictionaryGetValue(bounds, key.as_CFTypeRef()) })
+            };
+            let (Some(bx), Some(by), Some(bw), Some(bh)) = (
+                read_bounds(&x_key),
+                read_bounds(&y_key),
+                read_bounds(&w_key),
+                read_bounds(&h_key),
+            ) else {
+                continue;
+            };
+            if bw > 0.0 && bh > 0.0 && x >= bx && x < bx + bw && y >= by && y < by + bh {
+                return true;
+            }
+        }
+        false
     }
     fn element(&self, ax: &Owned, displays: &[crate::input::Display]) -> Option<UiElement> {
         let ax_role = ax.text("AXRole")?;
@@ -196,6 +289,9 @@ impl UiBackend for PlatformUi {
             .map(|d| d.scale_factor)
             .unwrap_or(1.0);
         let radius = radius_px / scale;
+        if self.is_over_own_interactive_window(x, y) {
+            return Ok(Vec::new());
+        }
         let mut hit = std::ptr::null();
         let status = unsafe {
             AXUIElementCopyElementAtPosition(self.system.0, x as f32, y as f32, &mut hit)
@@ -209,7 +305,16 @@ impl UiBackend for PlatformUi {
         let mut hit = Owned(hit);
         let mut results = Vec::new();
         // The hit is often a label; climb to its actionable control first.
+        // Skip elements from our own process: hit-testing Gestura windows triggers
+        // re-entrant V8 callbacks on this background thread, which crashes Electron.
         for _ in 0..8 {
+            if self.is_own_process(&hit) {
+                let Some(parent) = hit.attr("AXParent") else {
+                    break;
+                };
+                hit = parent;
+                continue;
+            }
             if let Some(element) = self.element(&hit, &displays) {
                 if intersects(&element.bounds, x, y, radius) {
                     results.push(element);
@@ -241,6 +346,12 @@ impl UiBackend for PlatformUi {
                 break;
             }
             visited += 1;
+            if self.is_own_process(&candidate) {
+                pending.extend(
+                    candidate.children(VISIT_LIMIT.saturating_sub(visited + pending.len())),
+                );
+                continue;
+            }
             if let Some(element) = self.element(&candidate, &displays)
                 && intersects(&element.bounds, x, y, radius)
                 && !results.contains(&element)

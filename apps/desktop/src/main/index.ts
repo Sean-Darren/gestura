@@ -22,6 +22,7 @@ import {
   ipcMain,
   screen,
   session,
+  shell,
   protocol,
   dialog,
   clipboard
@@ -455,6 +456,12 @@ function registerPauseHotkey(): void {
 
 app.whenReady().then(async () => {
   if (!primaryInstance) return
+  // Gestura's own windows (control, overlay) must never be AX hit-tested: the
+  // native accessibility worker calls AXUIElementCopyElementAtPosition, and if
+  // that query lands on one of our windows macOS calls back into Electron's
+  // accessibility handler on the worker thread, crashing V8. Disable Chromium's
+  // accessibility tree so our windows stay out of the AX hierarchy.
+  app.setAccessibilitySupportEnabled(false)
   const config = loadAppConfig(join(app.getPath('userData'), 'config.json'))
   const calibrationStore = new CalibrationStore(app.getPath('userData'))
   const calibrationProfile = await calibrationStore.load()
@@ -463,7 +470,7 @@ app.whenReady().then(async () => {
     readVisionAsset(
       app.isPackaged
         ? join(process.resourcesPath, 'vision')
-        : join(app.getAppPath(), 'resources/vision'),
+        : join(__dirname, '..', '..', 'resources', 'vision'),
       request.url
     )
   )
@@ -735,7 +742,7 @@ app.whenReady().then(async () => {
   speechTransport = new SpeechTransport({
     directory: app.isPackaged
       ? join(process.resourcesPath, 'speech')
-      : join(app.getAppPath(), 'resources/speech'),
+      : join(__dirname, '..', '..', 'resources', 'speech'),
     config: config.speech,
     createCapture: () =>
       createWindow('speech', {
@@ -803,13 +810,32 @@ app.whenReady().then(async () => {
   if (config.excel.enabled) {
     const excelStaticDir = app.isPackaged
       ? join(process.resourcesPath, 'excel-addin')
-      : join(app.getAppPath(), '..', '..', 'integrations', 'excel-addin', 'dist')
-    excelBridgeHandle = await startExcelBridge({
+      : join(__dirname, '..', '..', '..', '..', 'integrations', 'excel-addin', 'dist')
+    const bridgeHandle = await startExcelBridge({
       userDataDir: app.getPath('userData'),
       staticDir: excelStaticDir,
       port: config.excel.port,
       shareSampleValues: config.excel.shareSampleValues
     })
+    excelBridgeHandle = bridgeHandle
+    if (bridgeHandle.certCreated) {
+      dialog
+        .showMessageBox({
+          type: 'info',
+          title: 'Excel bridge certificate',
+          message: 'A development certificate was generated so Excel can connect to Gestura.',
+          detail: [
+            'Double-click the certificate to open Keychain Access.',
+            'Find "localhost" in the list, open it, expand Trust, and set "Secure Sockets Layer (SSL)" to Always Trust.',
+            'Then restart Excel.'
+          ].join('\n\n'),
+          buttons: ['Show in Finder', 'Got it'],
+          defaultId: 0
+        })
+        .then(({ response }) => {
+          if (response === 0) shell.showItemInFolder(bridgeHandle.certPath)
+        })
+    }
   }
   createWindows()
   app.on('activate', () => {

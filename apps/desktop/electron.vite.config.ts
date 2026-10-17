@@ -16,8 +16,16 @@ export default defineConfig({
       {
         name: 'gestura-local-vision-assets',
         buildStart: async () => {
-          await bundleVisionAssets()
-          await bundleSpeechAssets()
+          try {
+            await bundleVisionAssets()
+            await bundleSpeechAssets()
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            const hint =
+              'Run pnpm models:fetch from the repo root to download and bundle the required models, then restart the dev server.'
+            console.warn(`[gestura-local-vision-assets] ${message}`)
+            console.warn(`[gestura-local-vision-assets] ${hint}`)
+          }
         }
       }
     ],

@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   AudioAckSchema,
   AudioPacketSchema,
@@ -33,8 +35,14 @@ parent.on('message', (event) => {
   port.start()
 })
 try {
+  const dir = process.argv[2] ?? ''
+  console.error('[speech worker] dir:', dir)
+  for (const f of ['model.int8.onnx', 'tokens.txt', 'silero_vad.onnx']) {
+    const p = join(dir, f)
+    console.error('[speech worker]', f, ':', p, 'exists:', existsSync(p))
+  }
   engine = new SpeechEngine({
-    directory: process.argv[2] ?? '',
+    directory: dir,
     config: SpeechConfigSchema.parse(JSON.parse(process.argv[3] ?? '{}')),
     now: () => performance.timeOrigin + performance.now(),
     transcript: (transcript) => send({ kind: 'transcript', transcript }),
@@ -42,6 +50,7 @@ try {
     error: () => send({ kind: 'error' })
   })
   send({ kind: 'ready' })
-} catch {
+} catch (e) {
+  console.error('[speech worker] construction error:', e)
   send({ kind: 'error' })
 }
