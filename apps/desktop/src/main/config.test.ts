@@ -1,7 +1,8 @@
 import {
   DEFAULT_SNAP_CONFIG,
   DEFAULT_SPEECH_CONFIG,
-  DEFAULT_INTENT_CONFIG
+  DEFAULT_INTENT_CONFIG,
+  DEFAULT_GENAI_CONFIG
 } from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import { DEFAULT_PALETTE_CONFIG } from '@gestura/core'
@@ -41,7 +42,8 @@ describe('local app config', () => {
       speech: DEFAULT_SPEECH_CONFIG,
       intent: DEFAULT_INTENT_CONFIG,
       palette: DEFAULT_PALETTE_CONFIG,
-      excel: DEFAULT_EXCEL_CONFIG
+      excel: DEFAULT_EXCEL_CONFIG,
+      genai: DEFAULT_GENAI_CONFIG
     })
   })
 

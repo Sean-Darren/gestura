@@ -31,7 +31,8 @@ export async function startExcelBridge(
   options: StartExcelBridgeOptions
 ): Promise<ExcelBridgeHandle> {
   const tls =
-    loadOfficeDevCertificate() ?? loadOrCreateDevCertificate(join(options.userDataDir, 'excel-dev-cert'))
+    loadOfficeDevCertificate() ??
+    loadOrCreateDevCertificate(join(options.userDataDir, 'excel-dev-cert'))
   const server = await startExcelServer({
     token: createPairingToken(),
     port: options.port,

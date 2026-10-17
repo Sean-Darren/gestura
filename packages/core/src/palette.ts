@@ -90,7 +90,7 @@ export const PaletteStateSchema = z
         id: z.string().uuid(),
         text: DraftTextSchema,
         target: z.string(),
-        kind: z.enum(['dictation', 'type-text'])
+        kind: z.enum(['dictation', 'type-text', 'formula'])
       })
       .strict()
       .nullable(),

@@ -179,6 +179,47 @@ export const ExcelConfigSchema = z
 export type ExcelConfig = z.infer<typeof ExcelConfigSchema>
 export const DEFAULT_EXCEL_CONFIG = ExcelConfigSchema.parse({})
 
+export const GenaiCloudProviderConfigSchema = z
+  .object({
+    apiKey: z.string().min(1).describe('stored encrypted with safeStorage'),
+    host: z.string().min(1).describe('added to network allowlist at runtime'),
+    model: z.string().min(1).default('')
+  })
+  .strict()
+export type GenaiCloudProviderConfig = z.infer<typeof GenaiCloudProviderConfigSchema>
+
+export const GenaiLocalProviderConfigSchema = z
+  .object({
+    host: z.string().default('127.0.0.1:11434'),
+    model: z.string().min(1).default(''),
+    enabled: z.boolean().default(true)
+  })
+  .strict()
+export type GenaiLocalProviderConfig = z.infer<typeof GenaiLocalProviderConfigSchema>
+
+export const GenaiFormulaConfigSchema = z
+  .object({
+    timeoutMs: z.number().int().min(1000).max(30000).default(8000),
+    maxRetries: z.number().int().min(0).max(3).default(1),
+    maxHistory: z.number().int().min(1).max(50).default(20)
+  })
+  .strict()
+export type GenaiFormulaConfig = z.infer<typeof GenaiFormulaConfigSchema>
+
+export const GenaiConfigSchema = z
+  .object({
+    cloudProvider: GenaiCloudProviderConfigSchema.optional(),
+    localProvider: GenaiLocalProviderConfigSchema.default({
+      host: '127.0.0.1:11434',
+      model: '',
+      enabled: true
+    }),
+    formula: GenaiFormulaConfigSchema.default({ timeoutMs: 8000, maxRetries: 1, maxHistory: 20 })
+  })
+  .strict()
+export type GenaiConfig = z.infer<typeof GenaiConfigSchema>
+export const DEFAULT_GENAI_CONFIG = GenaiConfigSchema.parse({})
+
 export const AppConfigSchema = z
   .object({
     network: NetworkConfigSchema.default({ allowlist: [] }),
@@ -190,7 +231,8 @@ export const AppConfigSchema = z
     speech: SpeechConfigSchema.default(DEFAULT_SPEECH_CONFIG),
     intent: IntentConfigSchema.default(DEFAULT_INTENT_CONFIG),
     palette: PaletteConfigSchema.default(DEFAULT_PALETTE_CONFIG),
-    excel: ExcelConfigSchema.default(DEFAULT_EXCEL_CONFIG)
+    excel: ExcelConfigSchema.default(DEFAULT_EXCEL_CONFIG),
+    genai: GenaiConfigSchema.default(DEFAULT_GENAI_CONFIG)
   })
   .strict()
 

@@ -23,6 +23,7 @@
     "bench:pointing": "pnpm --filter @gestura/desktop bench:pointing",
     "bench:voice": "pnpm --filter @gestura/voice-bench exec node --import tsx src/cli.ts",
     "bench:voice:asr": "node scripts/voice-bench.mjs",
+    "bench:formula": "pnpm --filter @gestura/formula-bench exec node --import tsx src/cli.ts",
     "intents:generate": "pnpm --filter @gestura/voice-bench exec node --import tsx src/generate.ts"
   },
   "devDependencies": {

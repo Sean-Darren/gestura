@@ -1,6 +1,7 @@
 import { SnapController } from './snapping/controller'
 import { SpeechController } from './speech/controller'
 import { InputController } from './input/controller'
+import { CloudProvider, LocalProvider, FormulaRouter } from '@gestura/genai'
 import { PaletteStore } from './input/store'
 import { createNativeUiQueries } from './native/ui-elements'
 import { LISTENING_HOTKEY } from '@gestura/core'
@@ -782,31 +783,6 @@ app.whenReady().then(async () => {
     }
   })
   const paletteStore = new PaletteStore(app.getPath('userData'))
-  inputController = new InputController({
-    pause,
-    bridge: nativeInput,
-    settings: await paletteStore.load(config.palette),
-    gestures: config.gestures,
-    now: () => performance.timeOrigin + performance.now(),
-    foreground: () => inputUi.foregroundApp(),
-    display: () => screen.getPrimaryDisplay().bounds,
-    publish: (state) => {
-      for (const window of [controlWindow, overlayWindow])
-        if (window && !window.isDestroyed())
-          window.webContents.send('gestura:ipc', createIpcEnvelope('palette:state', state))
-    },
-    listening: setListening,
-    gazeOnly: (enabled) => speechController?.setGazeOnly(enabled),
-    dragging: (enabled) => pointerController?.setDragging(enabled),
-    pointerClick: (kind) => pointerController?.clickAtCursor(kind),
-    clipboard: () => clipboard.readText(),
-    save: (settings) => paletteStore.save(settings)
-  })
-  if (!globalShortcut.register(LISTENING_HOTKEY, () => inputController?.toggleListening()))
-    dialog.showErrorBox(
-      'Listening shortcut unavailable',
-      'Ctrl+Alt+L could not be registered. Use the overlay Listen tile or a held mouth gesture. The pause shortcut remains active.'
-    )
   if (config.excel.enabled) {
     const excelStaticDir = app.isPackaged
       ? join(process.resourcesPath, 'excel-addin')
@@ -837,6 +813,51 @@ app.whenReady().then(async () => {
         })
     }
   }
+  let formulaRouter: FormulaRouter | undefined
+  if (config.genai.cloudProvider) {
+    formulaRouter = new FormulaRouter({
+      cloud: new CloudProvider({
+        host: config.genai.cloudProvider.host,
+        apiKey: config.genai.cloudProvider.apiKey,
+        model: config.genai.cloudProvider.model
+      }),
+      local: new LocalProvider({
+        host: config.genai.localProvider.host,
+        model: config.genai.localProvider.model
+      }),
+      timeoutMs: config.genai.formula.timeoutMs,
+      maxRetries: config.genai.formula.maxRetries,
+      maxHistory: config.genai.formula.maxHistory
+    })
+  }
+  inputController = new InputController({
+    pause,
+    bridge: nativeInput,
+    settings: await paletteStore.load(config.palette),
+    gestures: config.gestures,
+    now: () => performance.timeOrigin + performance.now(),
+    foreground: () => inputUi.foregroundApp(),
+    display: () => screen.getPrimaryDisplay().bounds,
+    publish: (state) => {
+      for (const window of [controlWindow, overlayWindow])
+        if (window && !window.isDestroyed())
+          window.webContents.send('gestura:ipc', createIpcEnvelope('palette:state', state))
+    },
+    listening: setListening,
+    gazeOnly: (enabled) => speechController?.setGazeOnly(enabled),
+    dragging: (enabled) => pointerController?.setDragging(enabled),
+    pointerClick: (kind) => pointerController?.clickAtCursor(kind),
+    clipboard: () => clipboard.readText(),
+    save: (settings) => paletteStore.save(settings),
+    ...(excelBridgeHandle ? { excelBridge: excelBridgeHandle.bridge } : {}),
+    ...(formulaRouter ? { formulaRouter } : {}),
+    shareSamples: config.excel.shareSampleValues
+  })
+  if (!globalShortcut.register(LISTENING_HOTKEY, () => inputController?.toggleListening()))
+    dialog.showErrorBox(
+      'Listening shortcut unavailable',
+      'Ctrl+Alt+L could not be registered. Use the overlay Listen tile or a held mouth gesture. The pause shortcut remains active.'
+    )
   createWindows()
   app.on('activate', () => {
     if (!controlWindow || controlWindow.isDestroyed()) createControlWindow()

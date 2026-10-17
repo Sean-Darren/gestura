@@ -174,7 +174,9 @@ describe('dictation and gaze-only controller', () => {
       await s.activate(`compose:${purpose}`)
       await s.controller.control({ operation: 'draft', text })
       await s.activate('compose:done')
-      expect(s.controller.state.message).toMatch(purpose === 'range' ? /P4.1/ : /P4.2/)
+      expect(s.controller.state.message).toMatch(
+        purpose === 'range' ? /Excel bridge not connected/ : /requires the Excel bridge/
+      )
     }
     expect(s.mock.calls).toEqual([])
     s.controller.dispose()

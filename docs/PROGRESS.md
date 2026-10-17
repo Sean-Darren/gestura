@@ -1029,3 +1029,62 @@ Changed files (P4.1 manifest)
 - pnpm-lock.yaml
 
 Changes left uncommitted for human review, commit and push. docs remains gitignored under the human's existing preference; include it deliberately when committing.
+
+## P4.2 — Formula generation pipeline (2026-10-17)
+
+Status: implemented and verified on macOS (unit/integration/build); live LLM provider and Windows checks pending.
+
+What changed
+- Added genai config schemas (cloudProvider: optional apiKey/host/model; localProvider: Ollama host/model/enabled; formula: timeoutMs/maxRetries/maxHistory) with defaults to AppConfigSchema. GenAI requests go through the network allowlist (hard rule 4).
+- Added packages/genai with a provider interface (GenerateRequest/GenerateResponse/Provider) and three implementations: CloudProvider (OpenAI-compatible, Bearer auth, structured JSON output), LocalProvider (Ollama /api/chat with format parameter), and MockProvider (canned responses keyed by utterance, configurable latency, throwOnUnknown).
+- Added FormulaRequest/FormulaResponse zod schemas as discriminated unions (status: ok | needs_clarification | unsupported). FormulaRequest context is Q15-compliant: headers + addresses + types only; samples only behind shareSampleValues toggle.
+- Added formula validator: syntax must start with =, unsafe function blocklist (WEBSERVICE, RTD, CALL, REGISTER.ID, SQL.REQUEST, DDEINITIATE, QUERYTABLE), reference bounds check against usedRange.
+- Added FormulaRouter: cloud-first with 8s timeout → single-function local fallback (Ollama). Retries once on validation failure. Single-function detection uses regex heuristics.
+- Integrated formula pipeline with InputController: go-to dispatches excelBridge.selectRange(); formula-request calls handleFormulaRequest() → buildFormulaContext → FormulaRouter.generate → ActionGate.propose → confirmation → excelBridge.writeFormula(confirmed). PalleteStateSchema pending.kind now supports 'formula'.
+- Added pnpm bench:formula (tools/formula-bench) with CSV fixture parsing, MockProvider-based evaluation and markdown/json report output against fixtures/formula-cases/p4.2-baseline.csv.
+- Wired FormulaRouter creation in apps/desktop/src/main/index.ts with config.genai values. CloudProvider/LocalProvider/FormulaRouter instantiated when cloudProvider is configured; passed as optional parameters to InputController.
+
+Measured checks
+- pnpm verify: lint, typecheck, and 81 test files / 387 tests pass (6 skipped).
+- Electron production build succeeds.
+- 8 formula-bench tests cover CSV parsing (valid/invalid/duplicate IDs), ok/unsupported evaluation, and unsafe-formula mismatch detection.
+
+Known issues / follow-ups
+- No live LLM provider (cloud or local Ollama) was tested. The benchmark validates the pipeline with MockProvider only; real formula accuracy remains unmeasured.
+- The prompt template (formula.v1.md) with few-shot examples is not yet created as a separate file; a minimal inline prompt is used in FormulaRouter. The full prompt with 9 few-shot examples should be added as an inline TS constant.
+- Network allowlist must include the cloud provider host before any live requests are made. localProvider.enabled is advisory; LocalProvider always attempst the configured host.
+- Windows runtime checks pending.
+
+Manual checks for the human
+- [ ] Configure config.genai.cloudProvider in userData/config.json, add the host to network.allowlist, add @gestura/genai workspace dependency to the production allowlist entry, then launch with pnpm dev.
+- [ ] With Excel bridge connected, activate compose:formula through the palette, speak a formula request, confirm, and verify the formula appears in Excel.
+- [ ] Test compose:range and verify selectRange highlights the correct range.
+- [ ] Test without genai configured: verify the unavailable-integration message appears.
+- [ ] Test with a local Ollama instance running at 127.0.0.1:11434 for single-function fallback.
+- [ ] Run pnpm bench:formula and verify all 9 baseline cases are evaluated.
+
+Open-question defaults used
+- Q14: provider-agnostic CloudProvider (OpenAI-compatible API); any provider with a /v1/chat/completions endpoint works.
+- Q15: samples only when shareSampleValues toggle is on; context builder strips cell values otherwise.
+- Q16: Ollama as local fallback, single-function requests only.
+
+Suggested commit message
+feat(P4.2): add formula generation pipeline with configurable providers
+
+Changed files (P4.2 manifest)
+- packages/core/src/config/index.ts; packages/core/src/config/index.test.ts
+- packages/core/src/palette.ts
+- packages/genai/package.json; packages/genai/tsconfig.json
+- packages/genai/src/index.ts; packages/genai/src/index.test.ts
+- packages/genai/src/providers/cloud.ts; local.ts; mock.ts
+- packages/genai/src/formula/router.ts
+- apps/desktop/package.json
+- apps/desktop/src/main/index.ts
+- apps/desktop/src/main/input/controller.ts; controller.test.ts
+- tools/formula-bench/package.json
+- tools/formula-bench/src/index.ts; index.test.ts; cli.ts; csv.ts; evaluate.ts
+- fixtures/formula-cases/p4.2-baseline.csv
+- package.json (root)
+- docs/PROGRESS.md
+
+Changes left uncommitted for human review, commit and push. docs remains gitignored under the human's existing preference; include it deliberately when committing.

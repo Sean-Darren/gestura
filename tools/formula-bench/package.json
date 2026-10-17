@@ -5,5 +5,13 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@gestura/core": "workspace:*",
+    "@gestura/genai": "workspace:*"
+  },
+  "devDependencies": {
+    "csv-parse": "^6.2.1",
+    "tsx": "^4.23.15"
   }
 }

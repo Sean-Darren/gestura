@@ -1,0 +1,10 @@
+id,utterance,expected_status,expected_formula,sheet_name,selection,active_cell,headers,column_types,used_range
+sum-b,Sum column B,ok,=SUM(B2:B100),Sales,B2,B2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+avg-c,Average of column C,ok,=AVERAGE(C2:C100),Sales,C2,C2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+count-a,Count non-empty rows in column A,ok,=COUNTA(A2:A100),Sales,A2,A2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+max-b,Maximum value in column B,ok,=MAX(B2:B100),Sales,B2,B2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+if-b2,Categorize B2 as high if over 100 otherwise low,ok,"=IF(B2>100,""high"",""low"")",Sales,B2,B2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+vlookup,Look up the price for product in D2,ok,"=VLOOKUP(D2,A2:B100,2,FALSE)",Sales,D2,D2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:D100
+today,Today's date,ok,=TODAY(),Sales,A1,A1,,,A1:C100
+clarify,Which column should I sum,needs_clarification,,Sales,A1,A1,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100
+multi-step,Use VLOOKUP to find product price and multiply by quantity in column C,unsupported,,Sales,C2,C2,"Product,Revenue,Units","{""A"":""string"",""B"":""number"",""C"":""number""}",A1:C100

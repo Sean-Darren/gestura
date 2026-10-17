@@ -19,7 +19,8 @@ import type {
   Transcript,
   FaceFrame,
   ForegroundApp,
-  ConfirmationEvidence
+  ConfirmationEvidence,
+  FormulaAction
 } from '@gestura/core'
 import { IntentMatcher, normalizeRange } from '@gestura/intent'
 import { MouthHold } from '@gestura/gestures'
@@ -28,6 +29,10 @@ import type { PauseController } from '../pause'
 import { ActionGate } from '../action-gate'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
+import type { ExcelBridge } from '../excel-bridge'
+import type { FormulaRouter } from '@gestura/genai'
+import { buildFormulaContext, FormulaRequestSchema } from '@gestura/genai'
+import type { FormulaRequest, FormulaResponse } from '@gestura/genai'
 
 type Point = { x: number; y: number }
 type Composer = NonNullable<PaletteState['composer']>
@@ -77,6 +82,7 @@ export class InputController {
   private proposalTime = 0
   private busy = false
   private holdProgress = 0
+  private formulaHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
   private message = 'Open the palette, or start listening. Text always needs confirmation.'
   private suggestions: { label: string; intent: Intent }[] = []
   private tiles: PaletteTile[] = []
@@ -115,6 +121,9 @@ export class InputController {
       pointerClick(kind: 'click' | 'double-click' | 'right-click'): void
       clipboard(): Promise<string>
       save(settings: PaletteConfig): Promise<void>
+      excelBridge?: ExcelBridge
+      formulaRouter?: FormulaRouter
+      shareSamples?: boolean
     }
   ) {
     this.settings = PaletteConfigSchema.parse(options.settings)
@@ -231,6 +240,56 @@ export class InputController {
     this.lastInsertion = undefined
     this.message =
       'Review the text. Say confirm or close your mouth, then hold it open for one second.'
+  }
+  private async handleFormulaRequest(utterance: string): Promise<void> {
+    if (!utterance.trim() || !this.options.excelBridge || !this.options.formulaRouter) {
+      this.message = 'Formula generation requires the Excel bridge and a configured GenAI provider.'
+      return
+    }
+    const ctx = await this.options.excelBridge.getContext()
+    if (!ctx) {
+      this.message =
+        'Excel bridge not connected. Open Excel, confirm the add-in is loaded, then try again.'
+      return
+    }
+    const request: FormulaRequest = FormulaRequestSchema.parse({
+      utterance,
+      lang: 'en',
+      context: buildFormulaContext(ctx, this.options.shareSamples ?? false),
+      history: this.formulaHistory
+    })
+
+    this.message = 'Generating formula...'
+    this.emit()
+
+    const result: FormulaResponse = await this.options.formulaRouter.generate(request)
+
+    if (result.status === 'ok') {
+      this.formulaHistory.push(
+        { role: 'user', content: utterance },
+        { role: 'assistant', content: result.formula }
+      )
+      const proposalId = this.gate.propose({
+        kind: 'formula',
+        content: { formula: result.formula, target: result.targetCell }
+      } as FormulaAction)
+      this.gate.markShown(proposalId)
+      this.pending = {
+        id: proposalId,
+        text: `=${result.formula} → ${result.targetCell}`,
+        kind: 'formula',
+        target: 'Excel'
+      }
+      this.shown = true
+      this.proposalTime = this.options.now()
+      this.reviewPage = 0
+      this.target = await this.options.foreground()
+      this.message = result.explanation
+    } else if (result.status === 'needs_clarification') {
+      this.message = result.clarificationQuestion
+    } else {
+      this.message = result.explanation
+    }
   }
   control(value: PaletteControl): Promise<void> {
     const command = PaletteControlSchema.parse(value)
@@ -555,16 +614,24 @@ export class InputController {
       this.message = 'Confirmation was not fresh. Review the proposal and try again.'
       return
     }
-    const text = this.pending.text
+    const pending = this.pending
     this.cancel()
     this.busy = true
     this.emit()
     try {
-      const complete = await this.options.bridge.typeText(text, confirmed)
-      this.lastInsertion = complete && target ? { target, t: this.options.now() } : undefined
-      this.message = complete
-        ? 'Text inserted. Undo that is available for this destination for 15 seconds.'
-        : 'Insertion stopped. Some text may have been inserted; check the destination.'
+      if (pending.kind === 'formula') {
+        const wrote = await this.options.excelBridge?.writeFormula(confirmed)
+        this.lastInsertion = wrote && target ? { target, t: this.options.now() } : undefined
+        this.message = wrote
+          ? 'Formula written to the sheet. Undo that is available for 15 seconds.'
+          : 'Could not write the formula. Check that Excel is connected and the target cell is empty.'
+      } else {
+        const complete = await this.options.bridge.typeText(pending.text, confirmed)
+        this.lastInsertion = complete && target ? { target, t: this.options.now() } : undefined
+        this.message = complete
+          ? 'Text inserted. Undo that is available for this destination for 15 seconds.'
+          : 'Insertion stopped. Some text may have been inserted; check the destination.'
+      }
     } finally {
       this.busy = false
     }
@@ -653,11 +720,15 @@ export class InputController {
         await this.undo()
         return
       case 'go-to':
-        this.message = `Range ${intent.slots.range} selected. Excel navigation becomes available with the Office.js bridge in P4.1.`
+        if (this.options.excelBridge?.selectRange(intent.slots.range ?? '')) {
+          this.message = `Selected range ${intent.slots.range}.`
+        } else {
+          this.message =
+            'Excel bridge not connected. Open Excel and confirm the add-in is loaded, then try again.'
+        }
         return
       case 'formula-request':
-        this.message =
-          'Formula requests need the GenAI provider in P4.2. You can insert a function starter through a confirmed text proposal now.'
+        await this.handleFormulaRequest(intent.slots.request ?? '')
         return
       case 'click':
       case 'double-click':

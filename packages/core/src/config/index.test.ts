@@ -1,7 +1,8 @@
 import {
   DEFAULT_SNAP_CONFIG,
   DEFAULT_SPEECH_CONFIG,
-  DEFAULT_INTENT_CONFIG
+  DEFAULT_INTENT_CONFIG,
+  DEFAULT_GENAI_CONFIG
 } from '@gestura/core/config'
 import { DEFAULT_GESTURE_CONFIG } from './index'
 import { DEFAULT_PALETTE_CONFIG } from '../palette'
@@ -13,7 +14,8 @@ import {
   DEFAULT_POINTER_CONFIG,
   PointerConfigSchema,
   DEFAULT_UI_QUERY_CONFIG,
-  UiQueryConfigSchema
+  UiQueryConfigSchema,
+  GenaiConfigSchema
 } from './index'
 
 describe('app config', () => {
@@ -51,7 +53,8 @@ describe('app config', () => {
       speech: DEFAULT_SPEECH_CONFIG,
       intent: DEFAULT_INTENT_CONFIG,
       palette: DEFAULT_PALETTE_CONFIG,
-      excel: DEFAULT_EXCEL_CONFIG
+      excel: DEFAULT_EXCEL_CONFIG,
+      genai: DEFAULT_GENAI_CONFIG
     })
   })
 
@@ -65,5 +68,31 @@ describe('app config', () => {
     expect(() =>
       AppConfigSchema.parse({ network: { allowlist: ['api.example.com/path'] } })
     ).toThrow()
+  })
+
+  it('defaults genai with local provider enabled and 8s formula timeout', () => {
+    expect(DEFAULT_GENAI_CONFIG).toEqual({
+      localProvider: { host: '127.0.0.1:11434', model: '', enabled: true },
+      formula: { timeoutMs: 8000, maxRetries: 1, maxHistory: 20 }
+    })
+  })
+
+  it('validates a genai config with cloud provider', () => {
+    const parsed = GenaiConfigSchema.parse({
+      cloudProvider: { apiKey: 'sk-test', host: 'api.openai.com', model: 'gpt-4' },
+      localProvider: { host: '127.0.0.1:11434', model: 'llama3', enabled: false },
+      formula: { timeoutMs: 5000, maxRetries: 2, maxHistory: 10 }
+    })
+    expect(parsed.cloudProvider).toEqual({
+      apiKey: 'sk-test',
+      host: 'api.openai.com',
+      model: 'gpt-4'
+    })
+    expect(parsed.localProvider.enabled).toBe(false)
+    expect(parsed.formula.timeoutMs).toBe(5000)
+  })
+
+  it('rejects genai formula timeout below 1000 ms', () => {
+    expect(() => GenaiConfigSchema.parse({ formula: { timeoutMs: 500 } })).toThrow()
   })
 })
