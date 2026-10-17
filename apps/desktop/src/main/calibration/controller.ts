@@ -85,11 +85,16 @@ export class CalibrationController {
   firstRun(): void {
     if (!this.options.profile && !this.firstStarted) {
       this.firstStarted = true
-      this.start()
+      void this.control({ operation: 'start' })
     }
   }
   start(): void {
-    if (this.disposed || this.options.pause.paused || this.saving) return
+    if (this.disposed || this.saving) return
+    if (this.options.pause.paused) {
+      this.error = 'Input is paused. Resume input before starting calibration.'
+      this.emit()
+      return
+    }
     this.error = ''
     this.wizard = new CalibrationWizard(this.options.now(), this.options.display())
     this.provisional = undefined

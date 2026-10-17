@@ -84,7 +84,7 @@ export function CalibrationControl(): JSX.Element {
         <PointingBench onOpenChange={setBenchOpen} />
         <div hidden={benchOpen} inert={benchOpen}>
           <section className="calibration-launch controls" aria-label="Calibration settings">
-            <DwellButton onClick={() => command('start')}>
+            <DwellButton disabled={state.paused} onClick={() => command('start')}>
               {state.firstRun ? 'Start first-run calibration' : 'Recalibrate'}
             </DwellButton>
             <DwellButton
@@ -110,6 +110,14 @@ export function CalibrationControl(): JSX.Element {
             </DwellButton>
             <DwellButton onClick={() => command('clear-log')}>Clear local duration log</DwellButton>
             <p role="status">{state.message}</p>
+            {state.paused && (
+              <>
+                <p role="alert">Input is paused. Resume input to start calibration or listening.</p>
+                <DwellButton onClick={() => window.gestura.send('system:toggle-pause', {})}>
+                  Resume input
+                </DwellButton>
+              </>
+            )}
           </section>
           <SnapSettings />
           <SpeechSettings />
@@ -208,6 +216,12 @@ export function CalibrationControl(): JSX.Element {
         )}
       </section>
       <div className="calibration-actions controls">
+        <DwellButton
+          data-dwell="pause"
+          onClick={() => window.gestura.send('system:toggle-pause', {})}
+        >
+          {state.paused ? 'Resume input' : 'Pause input'}
+        </DwellButton>
         {state.stage === 'framing' && (
           <>
             <DwellButton

@@ -17,19 +17,21 @@ function setup(): {
   metrics: ReturnType<typeof vi.fn>
   prompt: ReturnType<typeof vi.fn>
   save: ReturnType<typeof vi.fn>
+  status: ReturnType<typeof vi.fn>
 } {
   const pause = new PauseController(),
     camera = vi.fn(),
     metrics = vi.fn(),
     prompt = vi.fn(),
-    save = vi.fn().mockResolvedValue('/local/session')
+    save = vi.fn().mockResolvedValue('/local/session'),
+    status = vi.fn()
   const controller = new VisionController({
     pause,
     camera,
     metrics,
     prompt,
     save,
-    status: vi.fn(),
+    status,
     open: async () => [frame(0), frame(100)],
     clock: {
       now: () => Date.now(),
@@ -39,10 +41,56 @@ function setup(): {
       }
     }
   })
-  return { controller, pause, camera, metrics, prompt, save }
+  return { controller, pause, camera, metrics, prompt, save, status }
 }
 afterEach(() => vi.useRealTimers())
 describe('main live/replay interface', () => {
+  it('shows a camera-process startup failure instead of waiting silently', () => {
+    vi.useFakeTimers()
+    const { controller, status, camera } = setup()
+    controller.start()
+    expect(status).toHaveBeenLastCalledWith(expect.objectContaining({ state: 'starting' }))
+    vi.advanceTimersByTime(10000)
+    expect(status).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        state: 'error',
+        message: expect.stringContaining('did not respond')
+      })
+    )
+    expect(camera).toHaveBeenLastCalledWith('stop')
+    controller.dispose()
+  })
+  it('waits for OS permission after the camera process acknowledges startup', () => {
+    vi.useFakeTimers()
+    const { controller, status } = setup()
+    controller.start()
+    controller.receiveStatus({
+      state: 'starting',
+      message: 'Requesting permission',
+      width: 0,
+      height: 0,
+      cameraFps: 0
+    })
+    vi.advanceTimersByTime(30000)
+    expect(status).toHaveBeenLastCalledWith(
+      expect.objectContaining({ message: 'Requesting permission' })
+    )
+    controller.dispose()
+  })
+  it('cancels the startup timeout when stopped or disposed', () => {
+    vi.useFakeTimers()
+    const { controller, status } = setup()
+    controller.start()
+    controller.stop()
+    const calls = status.mock.calls.length
+    vi.advanceTimersByTime(10000)
+    expect(status).toHaveBeenCalledTimes(calls)
+    controller.start()
+    controller.dispose()
+    const disposedCalls = status.mock.calls.length
+    vi.advanceTimersByTime(10000)
+    expect(status).toHaveBeenCalledTimes(disposedCalls)
+  })
   it('aborts an unfinished recording after a camera error', () => {
     const { controller, save, prompt } = setup()
     controller.start()

@@ -1355,3 +1355,46 @@ Changed files (P5.2 manifest)
 
 Suggested commit message
 feat(P5.2): add confirmed selected-field text generation and register switching
+
+## 2026-10-18 — P2.3 repair: macOS calibration startup and connection feedback
+
+Approved scope: diagnose the inert first-run calibration, restore startup, expose connection/pause failures, and check camera and speech separately.
+
+What changed
+- Reproduced first-run entering fullscreen and then becoming cancelled/paused with “Display configuration changed” within roughly 0.6 seconds. The display handler invalidated calibration and paused input for every display-metrics event, including macOS Dock/menu-bar workArea changes caused by fullscreen.
+- Added a tested display policy: workArea-only changes preserve full-display calibration; bounds, scaleFactor and rotation changes retain the existing safety invalidation. Display attach/detach handling is unchanged. Electron documents these distinct metrics at https://www.electronjs.org/docs/latest/api/screen/.
+- Calibration now explains paused startup and exposes Pause/Resume directly in the wizard and Resume beside the inactive launch button. First-run startup uses the existing error-handling path rather than allowing exceptions to escape.
+- The control renderer waits for a validated app:status acknowledgement before mounting operational controls. Missing preload, IPC failure or a five-second handshake timeout produces a connection message and Retry button instead of inert controls.
+- Camera startup now reports “connecting” and a ten-second missing-renderer acknowledgement error. An acknowledgement cancels this timer so a person can take longer to approve the OS permission dialog. Stop, replay and dispose cancel the timer.
+- No dependencies, scripts or workflow changes. Hard rules, network/media policy, confirmation rules and emergency pause remain unchanged. Temporary diagnostic logging was removed; the final app was launched without the inspector or verbose Chromium logging.
+
+Measured checks
+- pnpm verify: PASS, lint and all workspace typechecks; 529 tests passed, 6 existing tests skipped, across 114 passing files and 1 skipped file.
+- Desktop production build: PASS (existing third-party Rollup annotation warnings).
+- Regression coverage includes fullscreen workArea preservation, geometry invalidation, paused restart feedback, first-run exception feedback, missing/unresponsive desktop bridge, handshake acknowledgement/cleanup, camera acknowledgement timeout, OS permission waiting and stop/dispose cancellation.
+- Real Electron runtime after the display fix reported camera capture 1280×720 at 30 fps, and local MediaPipe reported its graph successfully running. No pixels were inspected, transferred to diagnostics or saved. This is a startup/capture check, not a head-control accuracy measurement.
+- pnpm bench:voice:asr: PASS, five pinned upstream WAV samples (en/zh/yue/ja/ko); one team-recording test skipped because no recordings exist. Five transcript latency samples: p50 623 ms, p95 672 ms, measured from VAD speech end with real-time WAV pacing. No microphone was used for this benchmark.
+- Runtime permission metadata: camera granted; microphone not-determined; Accessibility false for the actual Electron process. The native addon loaded successfully. No OS cursor movement or text injection was performed by diagnostics.
+- User reported not deliberately pausing and agreed to move away from the top-right corner, resume and try listening. A subsequent paused state was observed with calibration still active; its specific trigger was not established. The always-available corner pause remains enabled.
+- git diff --check: PASS. Changes remain uncommitted.
+
+UI delivery checks
+- Existing light-green/system-font direction retained. Added controls use existing button styles (52 px connection retry; existing 72 px wizard controls), wrapping layout, native keyboard buttons and existing focus styles; no assets, fonts, animation or framework were added.
+- Automated connection/state behavior and real Electron camera startup: PASS. Visual, keyboard/dwell click-through and live microphone acceptance remain pending with the human; no visual pass or completed camera/voice accuracy assessment is claimed. Prior browser-preview denial was not bypassed; diagnostics inspected main-process status and permission metadata only.
+
+Manual checks on macOS and Windows
+1. In the restarted desktop window, confirm first-run calibration stays open through fullscreen, the timer runs, and face/lighting indicators update. Check window resizing, Dock/menu-bar changes, physical display changes and scaling changes separately.
+2. Move away from the top-right pause target before selecting Resume input. Verify both the wizard button and Control+Option+P (macOS) / Ctrl+Alt+P (Windows) pause and resume. A true screen geometry change must still stop input.
+3. Finish calibration. Enable pointer control, approve the running Electron/Gestura application in macOS Accessibility, then re-enable pointer control. Verify real head movement and dwell/blink clicks in a disposable target; no live pointing accuracy result is available yet.
+4. With gaze-only off and input resumed, choose Start listening. Approve the microphone prompt and verify “Microphone live”, the overlay indicator and a final transcript. Try “pause”; resume and restart listening explicitly. A model-only WAV check does not prove this microphone/MessagePort path.
+5. Verify a browser preview or missing preload shows the connection message and retry, rather than operational buttons. Test keyboard/dwell navigation and narrow-window layout. Windows runtime acceptance remains pending.
+
+Changed files
+- apps/desktop/src/main/display-policy.ts; display-policy.test.ts; index.ts
+- apps/desktop/src/main/calibration/controller.ts; controller.test.ts
+- apps/desktop/src/main/vision/controller.ts; controller.test.ts
+- apps/desktop/src/renderer/control/main.tsx; CalibrationWizard.tsx
+- apps/desktop/src/renderer/shared/DesktopConnection.tsx; desktop-connection.ts; desktop-connection.test.ts
+- docs/PROGRESS.md
+
+Suggested commit message: fix(P2.3): preserve calibration across fullscreen and expose startup failures

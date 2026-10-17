@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CalibrationController } from './controller'
 import { CalibrationStore } from './store'
 import { PauseController } from '../pause'
+import { affectsPointerCoordinates } from '../display-policy'
 import { testFrame } from '../../../../../packages/pointer/src/test-frames'
 import {
   scriptedWizard,
@@ -52,6 +53,40 @@ function setup(profile: CalibrationProfile | undefined = undefined): {
   }
 }
 describe('calibration runtime safety', () => {
+  it('surfaces a first-run camera startup exception', () => {
+    const f = setup()
+    f.camera.mockImplementation(() => {
+      throw new Error('Camera process unavailable')
+    })
+    f.controller.firstRun()
+    expect(f.controller.state.message).toBe('Camera process unavailable')
+    f.controller.dispose()
+  })
+  it('keeps first-run calibration active across fullscreen work-area changes', () => {
+    const f = setup()
+    f.controller.firstRun()
+    if (affectsPointerCoordinates(['workArea'])) {
+      f.pause.toggle()
+      f.controller.displayChanged()
+    }
+    expect(f.controller.state.active).toBe(true)
+    expect(f.pause.paused).toBe(false)
+    expect(f.camera).toHaveBeenLastCalledWith(true)
+    f.controller.dispose()
+  })
+  it('explains a paused start instead of silently ignoring it', async () => {
+    const f = setup()
+    f.pause.toggle()
+    await f.controller.control({ operation: 'start' })
+    expect(f.controller.state.active).toBe(false)
+    expect(f.controller.state.message).toContain('Resume input')
+    expect(f.camera).not.toHaveBeenCalled()
+    f.pause.toggle()
+    await f.controller.control({ operation: 'start' })
+    expect(f.controller.state.active).toBe(true)
+    f.controller.dispose()
+  })
+
   it('lets a saved calibrated gaze mapping be switched off and back on without rerunning setup', async () => {
     const s = scriptedWizard()
     completeBlinkPhase(s)

@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { affectsPointerCoordinates } from './display-policy'
 import { startCodeServer } from './vscode-bridge/server'
 import { CodeBridge } from './vscode-bridge/bridge'
 import { publishPairing } from './vscode-bridge/pairing'
@@ -740,7 +741,8 @@ app.whenReady().then(async () => {
     pointerController?.invalidateDisplay()
     calibrationController?.displayChanged()
   })
-  screen.on('display-metrics-changed', () => {
+  screen.on('display-metrics-changed', (_event, _display, changedMetrics) => {
+    if (!affectsPointerCoordinates(changedMetrics)) return
     inputController?.displayChanged()
     overlayWindow?.setBounds(screen.getPrimaryDisplay().bounds)
     void benchController?.control({ operation: 'cancel' })

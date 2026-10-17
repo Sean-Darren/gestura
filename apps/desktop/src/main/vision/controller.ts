@@ -52,6 +52,7 @@ export class VisionController {
   private disposed = false
   private operation = 0
   private lastMetrics = 0
+  private cancelStartup: (() => void) | undefined
   constructor(private readonly options: VisionControllerOptions) {
     this.live = new RendererFrameSource((operation) => options.camera(operation))
     this.unsubscribeLive = this.live.subscribe((frame) => this.consume(frame))
@@ -93,6 +94,10 @@ export class VisionController {
   }
   receiveStatus(status: VisionStatus): void {
     if (this.disposed || this.player) return
+    if (status.state !== 'stopped') {
+      this.cancelStartup?.()
+      this.cancelStartup = undefined
+    }
     this.running = status.state === 'running'
     this.options.status(status)
     if (status.state === 'stopped' || status.state === 'error') {
@@ -107,10 +112,32 @@ export class VisionController {
     this.cancelReplay()
     this.metrics.reset()
     this.clearMetrics()
+    this.cancelStartup?.()
+    this.options.status({
+      state: 'starting',
+      message: 'Connecting to the local camera process',
+      width: 0,
+      height: 0,
+      cameraFps: 0
+    })
+    this.cancelStartup = this.options.clock.schedule(() => {
+      this.cancelStartup = undefined
+      this.live.stop()
+      this.receiveStatus({
+        state: 'error',
+        message:
+          'The camera process did not respond. Restart the desktop app and try tracking again.',
+        width: 0,
+        height: 0,
+        cameraFps: 0
+      })
+    }, 10000)
     this.live.start()
   }
   stop(): void {
     if (this.disposed) return
+    this.cancelStartup?.()
+    this.cancelStartup = undefined
     this.operation++
     this.live.stop()
     this.cancelReplay()
@@ -181,6 +208,8 @@ export class VisionController {
   async play(): Promise<void> {
     if (this.disposed || this.options.pause.paused) return
     if (this.recorder) throw new Error('Stop or cancel recording before replay')
+    this.cancelStartup?.()
+    this.cancelStartup = undefined
     this.live.stop()
     this.cancelReplay()
     this.running = false
