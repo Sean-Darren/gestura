@@ -20,9 +20,27 @@ pub struct ForegroundApp {
     pub app_id: String,
     pub window_title: String,
 }
+#[cfg_attr(feature = "addon", napi_derive::napi(object))]
+#[derive(Clone, Debug)]
+pub struct FocusedText {
+    pub token: String,
+    pub selected_text: String,
+}
 pub trait UiBackend {
     fn near(&mut self, x: f64, y: f64, radius_px: f64, at: bool) -> InputResult<Vec<UiElement>>;
     fn foreground(&mut self) -> InputResult<ForegroundApp>;
+    fn capture_text(&mut self, _token: &str) -> InputResult<Option<FocusedText>> {
+        Ok(None)
+    }
+    fn check_text(
+        &mut self,
+        _token: &str,
+        _text: &str,
+        _after: bool,
+        _select: bool,
+    ) -> InputResult<bool> {
+        Ok(false)
+    }
 }
 #[derive(Clone)]
 pub enum Query {
@@ -33,10 +51,19 @@ pub enum Query {
         at: bool,
     },
     Foreground,
+    CaptureText(String),
+    CheckText {
+        token: String,
+        text: String,
+        after: bool,
+        select: bool,
+    },
 }
 pub enum Reply {
     Elements(Vec<UiElement>),
     Foreground(ForegroundApp),
+    Text(Option<FocusedText>),
+    Checked(bool),
 }
 struct Request {
     query: Query,
@@ -92,6 +119,15 @@ fn spawn_worker<B: UiBackend + 'static>(
                             })
                         }
                         Query::Foreground => backend.foreground().map(Reply::Foreground),
+                        Query::CaptureText(token) => backend.capture_text(&token).map(Reply::Text),
+                        Query::CheckText {
+                            token,
+                            text,
+                            after,
+                            select,
+                        } => backend
+                            .check_text(&token, &text, after, select)
+                            .map(Reply::Checked),
                     },
                     Err(error) => Err(error.clone()),
                 };
@@ -108,6 +144,53 @@ pub fn validate_query(x: f64, y: f64, radius: f64) -> InputResult<()> {
         return Err("Radius must be 0..10,000 physical pixels".into());
     }
     Ok(())
+}
+// Command hosts are not passive plain-text destinations. Code editors use the
+// dedicated integration instead, so an embedded terminal cannot receive text.
+pub fn unsafe_text_host(executable: &str) -> bool {
+    let name = executable
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(executable)
+        .to_ascii_lowercase();
+    executable
+        .to_ascii_lowercase()
+        .contains("visual studio code.app")
+        || executable
+            .to_ascii_lowercase()
+            .contains("code - insiders.app")
+        || name.contains("terminal")
+        || name.contains("powershell")
+        || matches!(
+            name.as_str(),
+            "cmd.exe"
+                | "conhost.exe"
+                | "bash"
+                | "bash.exe"
+                | "zsh"
+                | "sh"
+                | "fish"
+                | "wsl.exe"
+                | "iterm2"
+                | "iterm"
+                | "kitty"
+                | "alacritty"
+                | "alacritty.exe"
+                | "wezterm-gui"
+                | "wezterm-gui.exe"
+                | "hyper"
+                | "hyper.exe"
+                | "tabby"
+                | "tabby.exe"
+                | "code"
+                | "code.exe"
+                | "code - insiders"
+                | "code - insiders.exe"
+                | "xcode"
+                | "idea64.exe"
+                | "pycharm64.exe"
+                | "webstorm64.exe"
+        )
 }
 pub fn truncate_label(value: &str) -> String {
     let mut units = 0;
@@ -182,6 +265,73 @@ pub mod addon {
         fn resolve(&mut self, _: Env, output: Self::Output) -> napi::Result<Self::JsValue> {
             Ok(output)
         }
+    }
+    pub struct TextTask(Query);
+    impl Task for TextTask {
+        type Output = Option<FocusedText>;
+        type JsValue = Option<FocusedText>;
+        fn compute(&mut self) -> napi::Result<Self::Output> {
+            match query(self.0.clone()).map_err(napi::Error::from_reason)? {
+                Reply::Text(value) => Ok(value),
+                _ => Err(napi::Error::from_reason("Unexpected text reply")),
+            }
+        }
+        fn resolve(&mut self, _: Env, value: Self::Output) -> napi::Result<Self::JsValue> {
+            Ok(value)
+        }
+    }
+    pub struct CheckTask(Query);
+    impl Task for CheckTask {
+        type Output = bool;
+        type JsValue = bool;
+        fn compute(&mut self) -> napi::Result<bool> {
+            match query(self.0.clone()).map_err(napi::Error::from_reason)? {
+                Reply::Checked(value) => Ok(value),
+                _ => Err(napi::Error::from_reason("Unexpected text reply")),
+            }
+        }
+        fn resolve(&mut self, _: Env, value: bool) -> napi::Result<bool> {
+            Ok(value)
+        }
+    }
+    fn validate_text_query(token: &str, text: &str) -> napi::Result<()> {
+        if token.len() != 36
+            || !token.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
+            || text.encode_utf16().count() > 10000
+            || text.contains('\0')
+        {
+            return Err(napi::Error::from_reason("Invalid text query"));
+        }
+        Ok(())
+    }
+    #[napi]
+    pub fn capture_focused_text(token: String) -> napi::Result<AsyncTask<TextTask>> {
+        validate_text_query(&token, "")?;
+        Ok(AsyncTask::new(TextTask(Query::CaptureText(token))))
+    }
+    #[napi]
+    pub fn check_text_target(
+        token: String,
+        text: String,
+        after: bool,
+    ) -> napi::Result<AsyncTask<CheckTask>> {
+        validate_text_query(&token, &text)?;
+        Ok(AsyncTask::new(CheckTask(Query::CheckText {
+            token,
+            text,
+            after,
+            select: false,
+        })))
+    }
+    #[napi]
+    pub fn select_inserted_text(token: String, text: String) -> napi::Result<AsyncTask<CheckTask>> {
+        validate_text_query(&token, &text)?;
+        Ok(AsyncTask::new(CheckTask(Query::CheckText {
+            token,
+            text,
+            after: true,
+            select: true,
+        })))
     }
     #[napi]
     pub fn element_at(x: f64, y: f64) -> napi::Result<AsyncTask<AtTask>> {
@@ -283,8 +433,40 @@ mod tests {
                 _ => panic!("Wrong reply"),
             }
         }
+        match request(Query::CaptureText("mock-token".into()), deadline())? {
+            Reply::Text(value) => assert!(value.is_none()),
+            _ => panic!("Wrong text reply"),
+        }
+        match request(
+            Query::CheckText {
+                token: "mock-token".into(),
+                text: "test".into(),
+                after: true,
+                select: true,
+            },
+            deadline(),
+        )? {
+            Reply::Checked(value) => assert!(!value),
+            _ => panic!("Wrong check reply"),
+        }
         assert!(request(Query::Foreground, Instant::now() - Duration::from_secs(1)).is_err());
         Ok(())
+    }
+    #[test]
+    fn passive_text_hosts_exclude_command_execution_surfaces() {
+        for name in [
+            "Terminal",
+            "C:\\Apps\\WindowsTerminal.exe",
+            "iTerm2",
+            "Code.exe",
+            "powershell.exe",
+            "bash",
+        ] {
+            assert!(unsafe_text_host(name));
+        }
+        for name in ["notepad.exe", "TextEdit", "chrome.exe", "Safari"] {
+            assert!(!unsafe_text_host(name));
+        }
     }
     #[test]
     fn geometry_and_arguments() {

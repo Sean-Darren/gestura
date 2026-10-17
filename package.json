@@ -24,7 +24,8 @@
     "bench:voice": "pnpm --filter @gestura/voice-bench exec node --import tsx src/cli.ts",
     "bench:voice:asr": "node scripts/voice-bench.mjs",
     "bench:formula": "pnpm --filter @gestura/formula-bench exec node --import tsx src/launch.ts",
-    "intents:generate": "pnpm --filter @gestura/voice-bench exec node --import tsx src/generate.ts"
+    "intents:generate": "pnpm --filter @gestura/voice-bench exec node --import tsx src/generate.ts",
+    "vscode:build": "pnpm --filter @gestura/vscode build"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

@@ -31,12 +31,22 @@ import type { GestureConfig } from '@gestura/core/config'
 import type { ExcelBridge } from '../excel-bridge'
 import type { FormulaRouter } from '@gestura/genai'
 import { FormulaController } from '../formula/controller'
+import { PlainTextController } from '../plain-text/controller'
+import type { PlainTextRouter } from '@gestura/genai'
+import type { PlainTextRequest } from '@gestura/core'
+import { CodeController, isCodeApp } from '../vscode-bridge/controller'
+import type { CodeBridge } from '../vscode-bridge/bridge'
+import type { CodeRouter } from '@gestura/genai'
 
 type Point = { x: number; y: number }
 type Composer = NonNullable<PaletteState['composer']>
 type Item = { id: string; label: string; disabled?: boolean }
 // These IDs are actual controller actions, not descriptive coverage labels.
 export const NON_VOICE_PATHS: Record<IntentId, string> = {
+  'rewrite-formally': 'intent:rewrite-formally',
+  'translate-en': 'intent:translate-en',
+  'translate-zh': 'intent:translate-zh',
+  'reply-request': 'compose:reply',
   click: 'intent:click',
   'double-click': 'intent:double-click',
   'right-click': 'intent:right-click',
@@ -80,7 +90,10 @@ export class InputController {
   private proposalTime = 0
   private busy = false
   private holdProgress = 0
-  private formula: FormulaController | undefined
+  private formula: FormulaController | CodeController | PlainTextController | undefined
+  private plain: PlainTextController | undefined
+  private excel: FormulaController | undefined
+  private code: CodeController | undefined
   private formulaId: string | null = null
   private message = 'Open the palette, or start listening. Text always needs confirmation.'
   private suggestions: { label: string; intent: Intent }[] = []
@@ -120,6 +133,9 @@ export class InputController {
       pointerClick(kind: 'click' | 'double-click' | 'right-click'): void
       clipboard(): Promise<string>
       save(settings: PaletteConfig): Promise<void>
+      plainTextRouter?: PlainTextRouter
+      codeBridge?: CodeBridge
+      codeRouter?: CodeRouter
       excelBridge?: ExcelBridge
       formulaRouter?: FormulaRouter
       shareSamples?: boolean
@@ -151,7 +167,51 @@ export class InputController {
               this.holdProgress = 0
               this.formulaId = state.proposalId
             }
-            this.message = state.explanation
+            this.message = state.explanation.slice(0, 500)
+          }
+          this.emit()
+        }
+      })
+    this.excel = this.formula as FormulaController | undefined
+    if (options.codeBridge && options.codeRouter)
+      this.code = new CodeController({
+        gate: this.gate,
+        bridge: options.codeBridge,
+        pause: options.pause,
+        now: options.now,
+        foreground: options.foreground,
+        display: options.display,
+        generate: (request, signal) => options.codeRouter!.generate(request, signal),
+        publish: () => {
+          const state = this.formula?.state
+          if (state) {
+            if (state.proposalId !== this.formulaId) {
+              this.mouth.reset()
+              this.holdProgress = 0
+              this.formulaId = state.proposalId
+            }
+            this.message = state.explanation.slice(0, 500)
+          }
+          this.emit()
+        }
+      })
+    if (options.plainTextRouter)
+      this.plain = new PlainTextController({
+        gate: this.gate,
+        bridge: options.bridge,
+        pause: options.pause,
+        now: options.now,
+        display: options.display,
+        generate: (request, signal) => options.plainTextRouter!.generate(request, signal),
+        publish: () => {
+          const state = this.formula?.state
+          if (state) {
+            if (state.proposalId !== this.formulaId) {
+              this.mouth.reset()
+              this.holdProgress = 0
+              this.formulaId = state.proposalId
+            }
+            this.message = state.explanation.slice(0, 500)
           }
           this.emit()
         }
@@ -278,10 +338,18 @@ export class InputController {
   }
   private async handleFormulaRequest(
     utterance: string,
-    lang: 'en' | 'yue' | 'mixed' = 'en'
+    lang: 'en' | 'yue' | 'mixed' = 'en',
+    forceCode = false
   ): Promise<void> {
+    const foreground = await this.options.foreground()
+    if (this.options.pause.paused) return
+    this.cancel()
+    this.formula = forceCode || isCodeApp(foreground) ? this.code : this.excel
     if (!this.formula) {
-      this.message = 'Formula generation requires the Excel bridge and a configured GenAI provider.'
+      this.message =
+        forceCode || isCodeApp(foreground)
+          ? 'Code generation requires the VS Code bridge and a configured GenAI provider.'
+          : 'Formula generation requires the Excel bridge and a configured GenAI provider.'
       return
     }
     this.cancel()
@@ -289,6 +357,22 @@ export class InputController {
     this.open = false
     this.composer = null
     this.formula.start(utterance, lang)
+  }
+  private handlePlainRequest(
+    operation: PlainTextRequest['operation'],
+    instruction = '',
+    lang: 'en' | 'yue' | 'mixed' = 'en'
+  ): void {
+    this.cancel()
+    if (!this.plain) {
+      this.message = 'Text generation needs a configured provider.'
+      return
+    }
+    this.formula = this.plain
+    this.open = false
+    this.composer = null
+    this.correctingFromPalette = false
+    this.plain.request(operation, instruction, lang)
   }
   control(value: PaletteControl): Promise<void> {
     const command = PaletteControlSchema.parse(value)
@@ -346,6 +430,8 @@ export class InputController {
       { id: 'compose:phrase', label: 'Add phrase' },
       { id: 'compose:range', label: 'Go to cell / range' },
       { id: 'compose:formula', label: 'Formula request' },
+      { id: 'compose:code', label: 'Code request' },
+      { id: 'compose:reply', label: 'Write a reply' },
       ...Object.entries(NON_VOICE_PATHS)
         .filter(([, path]) => path.startsWith('intent:'))
         .map(([id, path]) => ({
@@ -406,6 +492,15 @@ export class InputController {
         }
       ]
       if (formula.canUndo) controls[1] = { id: 'formula:undo', label: 'Undo that', disabled: false }
+      if (formula.targetKind === 'plain-text')
+        this.tiles.push({
+          id: 'text:register',
+          label:
+            formula.register === 'standard_written' ? '書面語 · 改用口語' : '口語 · 改用書面語',
+          disabled:
+            this.options.pause.paused || !['proposed', 'clarification'].includes(formula.phase),
+          bounds: { x: b.x + 12, y: b.y + b.height - 216, width: b.width - 24, height: 64 }
+        })
       this.tiles.push(
         ...controls.map((item, i) => ({
           ...item,
@@ -624,6 +719,27 @@ export class InputController {
             : /[\u3400-\u9fff]/u.test(transcript.text)
               ? 'yue'
               : 'en'
+      if (
+        result.kind === 'match' &&
+        ['rewrite-formally', 'reply-request', 'translate-en', 'translate-zh'].includes(
+          result.intent.id
+        )
+      ) {
+        const intent = result.intent
+        if (intent.id === 'reply-request')
+          this.handlePlainRequest('reply', intent.slots.request, lang)
+        else
+          this.handlePlainRequest(
+            intent.id === 'rewrite-formally'
+              ? 'rewrite'
+              : intent.id === 'translate-en'
+                ? 'translate-en'
+                : 'translate-zh',
+            '',
+            lang
+          )
+        return
+      }
       if (this.formula?.active) {
         if (result.kind === 'match' && result.intent.id === 'confirm') {
           if (result.evidence) await this.formula.confirm(result.evidence)
@@ -650,6 +766,10 @@ export class InputController {
         const foreground = await this.options.foreground().catch(() => undefined)
         if (revision !== this.revision || this.options.pause.paused || this.settings.gazeOnly)
           return
+        if (isCodeApp(foreground)) {
+          await this.handleFormulaRequest(transcript.text, lang, true)
+          return
+        }
         if (foreground && /excel/i.test(foreground.appId))
           result = this.matcher.match(
             transcript.text,
@@ -816,6 +936,18 @@ export class InputController {
             'Excel bridge not connected. Open Excel and confirm the add-in is loaded, then try again.'
         }
         return
+      case 'rewrite-formally':
+        this.handlePlainRequest('rewrite')
+        return
+      case 'translate-en':
+        this.handlePlainRequest('translate-en')
+        return
+      case 'translate-zh':
+        this.handlePlainRequest('translate-zh')
+        return
+      case 'reply-request':
+        this.handlePlainRequest('reply', intent.slots.request)
+        return
       case 'formula-request':
         await this.handleFormulaRequest(intent.slots.request ?? '')
         return
@@ -855,6 +987,10 @@ export class InputController {
     this.layout()
     // Only presently visible, enabled actions can be selected over IPC.
     if (!this.tiles.some((tile) => tile.id === id && !tile.disabled)) return
+    if (id === 'text:register') {
+      this.plain?.toggleRegister()
+      return
+    }
     if (id.startsWith('formula:')) {
       if (id === 'formula:cancel') {
         this.formula?.cancel()
@@ -865,7 +1001,12 @@ export class InputController {
       else if (id === 'formula:correct') {
         this.formula?.cancel('Compose a correction, then submit it for a fresh proposal.')
         this.open = true
-        this.composer = 'formula'
+        this.composer =
+          this.formula?.state.targetKind === 'plain-text'
+            ? 'reply'
+            : this.formula?.state.targetKind === 'code'
+              ? 'code'
+              : 'formula'
         this.draft = ''
         this.page = 0
         this.correctingFromPalette = true
@@ -922,12 +1063,18 @@ export class InputController {
           return
         }
         await this.dispatch({ id: 'go-to', slots: { range } })
-      } else if (this.composer === 'formula') {
+      } else if (
+        this.composer === 'formula' ||
+        this.composer === 'code' ||
+        this.composer === 'reply'
+      ) {
         if (this.correctingFromPalette && this.draft.trim()) {
           this.formula?.start(this.draft, this.formula.state.lang, true)
           this.correctingFromPalette = false
-        } else if (this.draft.trim())
-          await this.dispatch({ id: 'formula-request', slots: { request: this.draft } })
+        } else if (this.composer === 'reply' && this.draft.trim())
+          this.handlePlainRequest('reply', this.draft)
+        else if (this.draft.trim())
+          await this.handleFormulaRequest(this.draft, 'en', this.composer === 'code')
       } else await this.propose(this.draft, 'dictation')
       this.composer = null
       this.page = 0
@@ -962,7 +1109,7 @@ export class InputController {
       )
     } else if (id.startsWith('intent:'))
       await this.dispatch({
-        id: id.slice(7) as Exclude<IntentId, 'go-to' | 'formula-request'>,
+        id: id.slice(7) as Exclude<IntentId, 'go-to' | 'formula-request' | 'reply-request'>,
         slots: {}
       })
     else if (id.startsWith('suggestion:')) {
@@ -972,7 +1119,9 @@ export class InputController {
   }
   private correctingFromPalette = false
   dispose(): void {
-    this.formula?.dispose()
+    this.excel?.dispose()
+    this.code?.dispose()
+    this.plain?.dispose()
     this.cancel()
     this.disposed = true
     this.unsubscribe()

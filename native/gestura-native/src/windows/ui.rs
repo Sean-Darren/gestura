@@ -30,6 +30,7 @@ impl Drop for Com {
     }
 }
 pub struct PlatformUi {
+    text: super::text::Backend,
     automation: IUIAutomation,
     cache: IUIAutomationCacheRequest,
     walker: IUIAutomationTreeWalker,
@@ -64,6 +65,7 @@ impl PlatformUi {
         };
         let (automation, cache, walker) = initialize().map_err(|e| e.to_string())?;
         Ok(Self {
+            text: super::text::Backend::new(automation.clone()),
             automation,
             cache,
             walker,
@@ -116,6 +118,9 @@ fn role(control: i32) -> Option<&'static str> {
     }
 }
 impl UiBackend for PlatformUi {
+    fn capture_text(&mut self, token: &str) -> InputResult<Option<crate::ui::FocusedText>> { self.text.capture(token) }
+    fn check_text(&mut self, token: &str, text: &str, after: bool, select: bool) -> InputResult<bool> { self.text.check(token, text, after, select) }
+
     fn near(&mut self, x: f64, y: f64, radius_px: f64, at: bool) -> InputResult<Vec<UiElement>> {
         let _dpi = super::DpiScope::enter()?;
         let start = Instant::now();

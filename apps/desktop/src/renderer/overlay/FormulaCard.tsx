@@ -25,31 +25,47 @@ export function FormulaCard({
     }
   }, [id, page, pages])
   if (!state?.bounds || ['idle', 'cancelled'].includes(state.phase)) return null
+  const code = state.targetKind === 'code'
+  const plain = state.targetKind === 'plain-text'
+  const compact = plain && state.bounds.height < 460
+  const noun = plain ? 'text' : code ? 'code' : 'formula'
   const busy = ['thinking', 'correcting', 'writing', 'restoring'].includes(state.phase)
   const title =
     state.phase === 'thinking'
       ? 'Thinking'
       : state.phase === 'correcting'
-        ? `Thinking · correction ${state.correction}`
+        ? state.correction
+          ? `Thinking · correction ${state.correction}`
+          : 'Thinking'
         : state.phase === 'written'
-          ? 'Formula written'
+          ? plain
+            ? 'Text inserted'
+            : code
+              ? 'Code inserted'
+              : 'Formula written'
           : state.phase === 'undo-proposed'
             ? 'Review undo'
             : state.phase === 'writing'
-              ? 'Writing formula'
+              ? `Writing ${noun}`
               : state.phase === 'restoring'
-                ? 'Restoring cell'
+                ? plain
+                  ? 'Restoring text'
+                  : code
+                    ? 'Restoring code'
+                    : 'Restoring cell'
                 : state.phase === 'error'
-                  ? 'Formula unavailable'
+                  ? `${plain ? 'Text' : code ? 'Code' : 'Formula'} unavailable`
                   : state.phase === 'clarification'
                     ? 'More detail needed'
                     : state.correction
-                      ? `Review formula · correction ${state.correction}`
-                      : 'Review formula'
+                      ? `Review ${noun} · correction ${state.correction}`
+                      : `Review ${noun}`
   return (
     <section
-      className="formula-card"
-      aria-label="Excel formula proposal"
+      className={`formula-card ${plain ? 'plain-text-card' : ''} ${compact ? 'compact-text-card' : ''}`}
+      aria-label={
+        plain ? 'Selected text proposal' : code ? 'VS Code proposal' : 'Excel formula proposal'
+      }
       aria-busy={busy}
       style={{
         left: state.bounds.x,
@@ -60,9 +76,16 @@ export function FormulaCard({
     >
       <div className="formula-card-body">
         <h2>{title}</h2>
-        <p className="formula-target">{state.target || 'Excel'}</p>
+        {!compact && (
+          <p className="formula-target">
+            {state.target || (plain ? 'Selected text field' : code ? 'VS Code' : 'Excel')}
+          </p>
+        )}
         {!busy && state.formula && state.reviewKind === 'formula' && (
-          <pre aria-label="Formula" className="formula-code">
+          <pre
+            aria-label={plain ? 'Text' : code ? 'Code' : 'Formula'}
+            className={plain ? 'plain-proposal-text' : 'formula-code'}
+          >
             {state.reviewText}
           </pre>
         )}
@@ -90,7 +113,8 @@ export function FormulaCard({
               </p>
             )}
             <p>
-              Review {state.reviewPage + 1}/{state.reviewPages} · Next text to continue
+              Review {state.reviewPage + 1}/{state.reviewPages}
+              {!plain && ' · Next text to continue'}
             </p>
             {['proposed', 'undo-proposed'].includes(state.phase) && (
               <div className="formula-confirmation">
@@ -113,12 +137,18 @@ export function FormulaCard({
                   />
                 </svg>
                 <p>
-                  Review every page, then say “confirm” / 「確認」 or hold your mouth open for 1 s.
+                  {plain
+                    ? 'Say confirm / 確認, or hold mouth open 1 s.'
+                    : 'Review every page, then say “confirm” / 「確認」 or hold your mouth open for 1 s.'}
                 </p>
               </div>
             )}
             {state.phase === 'written' && (
-              <p>Say “undo that” after reviewing the previous content, or dwell on Undo that.</p>
+              <p>
+                {code || plain
+                  ? 'Say “undo that”, or dwell on Undo that, to review a separately confirmed inverse edit.'
+                  : 'Say “undo that” after reviewing the previous content, or dwell on Undo that.'}
+              </p>
             )}
           </>
         )}

@@ -1240,3 +1240,118 @@ Changed files (this follow-up)
 
 Suggested commit message
 fix(P4.4): connect OpenRouter through private environment configuration
+
+## P5.1 — Confirmed VS Code code proposals
+
+Date: 2026-10-18 (started 2026-10-17).
+
+Changed
+- Replaced the VS Code placeholder runtime with a desktop extension host. Build bundles CommonJS and emits a loadable unscoped manifest in integrations/vscode/dist, while retaining the scoped pnpm workspace name. Added pnpm vscode:build and its AGENTS Commands entry. Reused existing ws/esbuild/Zod versions; added development-only VS Code API types. No workflow, release or git write was added.
+- Added a one-client loopback WebSocket bridge with bearer authentication, browser-Origin rejection, no redirects/compression and bounded strict Zod messages. A 256-bit token rotates at desktop startup and is atomically published under ~/.gestura-vscode/pairing.json. The extension retries local pairing and never sees provider keys. Hardened the shared timing-safe token comparison against non-ASCII byte-length mismatches.
+- Added native permission helpers under macos/windows: mode 0700 on macOS; a protected owner-only inheritable Windows DACL before token publication. New files use 0600 / protected directory inheritance. Publication fails closed if protection is unavailable. Normal exit attempts cleanup; a crash/stale file is replaced at next startup. No claim is made against other same-user processes or privileged OS administrators.
+- getContext shares only languageId, filename basename, selected text and at most 40 cursor-surrounding lines. Selection and surrounding text each cap at 16,000 characters. URI, version, selection offsets and complete document snapshots remain extension-local. The local snapshot/preview limit is one million characters. Recorded the user-approved code equivalent of Q15 in open-questions.md; existing Q15 status/default remains unchanged. The maintainer's Phase 4 benchmark-gate confirmation is recorded as an attestation, not a new measured result.
+- Added structured code responses with status/code/insertion mode and English + Traditional HK explanations, validated with Zod and one schema-repair retry. Code requests use the existing configured main-only allowlisted cloud transport. Correction history contains user request / previous code / correction, capped at 20 messages. No code fallback model was added (Q16 remains single-function formulas/intent only).
+- Added read-only VS Code virtual-document diffs beside the source and reused the existing paginated Gestura proposal card, countdown, dwell controls and green style. Preview, source visibility and focus are checked before approval can apply. Cancellation/pause/disconnect clear preview state; cancellation closes Gestura's virtual diff tabs. Opened virtual document buffers may remain in VS Code's own cache until collected.
+- Main's write boundary accepts only an ActionGate-minted ConfirmedAction, then sends a single-use snapshot/preview reference; no serialized object is treated as a branded capability. Extension writes only one WorkspaceEdit after checking exact source URI/version/text/selection/cursor and a focused paired window. No automatic save, generated-code execution, terminal/tasks/debug API or child process is used.
+- Corrections revoke old proposal IDs. Old/stale/paused/reconnected/changed destinations fail closed. Undo is an independently previewed and confirmed inverse WorkspaceEdit, with exact local document matching; it refuses intervening edits. Ambiguous results are never retried automatically. Pause cannot recall an edit already accepted by VS Code.
+- Added a Code request palette composer; free-form unmatched speech routes to code in VS Code. Existing review/correct/cancel/undo controls remain available by dwell, with silent mouth confirmation for gaze-only mode. Updated proposal labels without changing layout or adding small interactive status controls. Full explanations remain in the card; short status messages are capped to their IPC schema bound.
+- Added the VS Code execution lint boundary and a violating fixture. It catches child_process import/require/dynamic imports, terminal/tasks/debug APIs, aliases/destructuring and arbitrary executeCommand calls; only the literal vscode.diff command is allowed. It is a development guard, not an obfuscation-resistant sandbox.
+
+Measured checks
+- pnpm verify: lint zero warnings, all workspace typechecks; 106 test files / 498 tests passed, with 1 file / 6 existing tests skipped. Vitest duration 4.54 s on this macOS host.
+- pnpm vscode:build PASS; generated extension manifest smoke PASS; bundled extension loads with mocked VS Code API and exports activate. No extension activation or provider request was made by that bundle-load smoke.
+- Electron desktop production build PASS (existing third-party Rollup annotation warnings only).
+- pnpm native:build PASS on darwin-arm64. Native helper smoke with the built addon repaired a temporary 0755 directory to 0700; no input was injected.
+- cargo clippy -- -D warnings PASS on aarch64-apple-darwin, x86_64-apple-darwin and x86_64-pc-windows-msvc targets. Windows is a cross-target compile/lint check, not an ACL/runtime acceptance test.
+- Added tests cover bounded/no-extra context, bilingual response schemas, repair retry/correction history, cancellation, token publication/failure/rotation, real loopback authentication/protocol parsing, branded/single-use/revision-bound writes, expiry, changed documents/selections, cancel/pause/reconnect, simultaneous duplicate writes, both insert modes, inverse edits and intervening-edit rejection. Gaze-composed requests and click rejection are tested through InputController.
+- Full synthetic loopback test PASS: fake editor -> bounded context -> code proposal -> real ActionGate fresh voice confirmation -> one edit -> separate mouth-confirmed inverse edit -> original text restored. No actual document, camera, microphone, native input or paid provider was used. No accuracy or human timing claim follows from these tests.
+- git diff --check PASS. AGENTS Hard rules compared against HEAD and unchanged. Changes remain uncommitted.
+
+Defaults / limitations
+- Q4 voice-confirm or a fresh one-second silent mouth hold; no blink/wink/dwell confirmation. Q6 primary display; Q8 no interaction logging; Q12 Traditional Hong Kong Chinese; Q15 Excel sample values still opt-in; separate code context policy as explicitly requested. Phase 4 gate accepted from the maintainer's statement.
+- Actual VS Code runtime/visible diff behavior, real voice/head/mouth operation and Windows permissions/runtime remain manual acceptance checks. Windows builds must rebuild the native addon to include the permission helper. A missing helper disables only the VS Code bridge.
+- Code generation requires the configured cloud provider; no code-quality benchmark was requested/run. Local editor snapshots and restore are in memory only and expire after 60 seconds from context capture, including inference/review time. Other extensions can react to edits; no cross-extension atomic isolation is claimed.
+- The extension intentionally handles trusted local file/untitled documents only. Remote workspaces, Codespaces, notebook/custom editors and multiple paired windows are follow-ups. No broader workspace scan or context option was added.
+
+Manual checks (macOS and Windows)
+- Run pnpm install, pnpm native:build, pnpm vscode:build and pnpm dev. Open a development VS Code window with --extensionDevelopmentPath pointing to integrations/vscode/dist, then open a trusted disposable local code file. Confirm connected status and reconnect after restarting Gestura. Check Windows owner-only ACLs with icacls and macOS mode bits.
+- Select text / place a cursor, keep the source visible and use Code request by dwell or speak a free-form request. Inspect the beside read-only diff and complete paginated code/explanation card. Verify no edit before fresh voice/mouth confirmation, exactly one edit after it, and no auto-save or execution.
+- Correct by voice and gaze composition; check correction counter, history, old proposal invalidation and fresh confirmation. Cancel and pause during generation/review/confirmation. Blink/wink/dwell on the card must never insert.
+- Stage Undo that by voice/dwell, review inverse diff, then separately confirm. Edit the document, move selection, switch documents/windows, disconnect or expire the snapshot before confirm/undo; verify rejection and no overwrite.
+- Exercise gaze-only mode with mic off, silent mouth countdown, all review pages, correction composer, cancel and undo. Check both Retina and Windows scaling. Inspect terminal/tasks/debug history to confirm no execution side effect.
+- Follow integrations/vscode/README.md for startup, pairing and troubleshooting. Record real editor and Windows acceptance results before claiming those checks passed.
+
+Changed files (P5.1 manifest)
+- AGENTS.md (Commands only); package.json; pnpm-lock.yaml; eslint.config.mjs
+- integrations/vscode/package.json; tsconfig.json; build.mjs; README.md
+- integrations/vscode/src/extension.ts; transactions.ts; transactions.test.ts
+- packages/core/src/code.ts; code.test.ts; formula-loop.ts; palette.ts; index.ts
+- packages/genai/src/code/router.ts; router.test.ts; packages/genai/src/index.ts
+- apps/desktop/src/main/index.ts; input/controller.ts; input/code.test.ts
+- apps/desktop/src/main/vscode-bridge/server.ts; server.test.ts; bridge.ts; bridge.test.ts
+- apps/desktop/src/main/vscode-bridge/controller.ts; controller.test.ts; pairing.ts; pairing.test.ts; integration.test.ts
+- apps/desktop/src/main/excel-bridge/token.ts; token.test.ts
+- apps/desktop/src/renderer/overlay/FormulaCard.tsx; renderer/control/SpeechSettings.tsx
+- native/gestura-native/Cargo.toml; index.d.ts; src/lib.rs; src/macos/mod.rs; src/macos/pairing.rs; src/windows/mod.rs; src/windows/pairing.rs
+- tools/eslint/vscode-boundary.mjs; tools/lint-boundaries.test.ts; tools/lint-fixtures/vscode-violation.ts.fixture
+- docs/open-questions.md; docs/decisions/0015-vscode-code-proposals.md; docs/PROGRESS.md
+
+Suggested commit message
+feat(P5.1): add confirmed VS Code code proposals and guarded edits
+
+## P5.2 — GenAI for selected plain-text fields
+
+Date: 2026-10-18.
+
+Changed
+- Extended the native accessibility worker with focused-text capture, guarded post-insertion checks and verified insertion-range selection for undo. Windows uses the dedicated COM/UIA thread, current focus/enable/password/offscreen properties, writable ValuePattern and TextPattern.GetSelection. macOS uses AX focused application/element, editable value and selection attributes. No field value, clipboard, screen pixels or unrelated window text is read for context.
+- Native snapshots retain field identity, original selected range/text and an opaque UUID for 60 seconds. Windows navigates range endpoints in TextUnit_Character units and checks endpoint equality; DocumentRange is collapsed/moved as metadata before GetText reads only the selected/owned range. macOS uses AXSelectedTextRange and bounded AXStringForRange. Known terminal/command hosts and VS Code are rejected as plain-text destinations; VS Code retains its dedicated integration.
+- Added strict core schemas for selected text, request, response, register and field-bound write capabilities. Selection/output cap at 10,000 UTF-16 units; invalid control/surrogate characters and extra context fields are rejected. Provider inputs are only selected text, operation, user instruction and requested register; field tokens/identity/ranges remain local.
+- Added main-only PlainTextRouter through the existing allowlisted provider, structured JSON and one schema/register repair retry. Chinese output remains Traditional HK. Per the maintainer's explicit reply, English translation switches to colloquial Cantonese with 口語; 書面語 restores the original English translation request. Every toggle uses the original selection, revokes the old ActionGate ID and requires new review/confirmation.
+- Added English/Cantonese/mixed rewrite, reply and translation intents to commands.yaml and regenerated the validated catalogue. Added gaze-only parity paths, including a reply instruction composer. Explicit text intents route before generic formula/code correction handling.
+- Reused the paginated proposal card and existing green/system-font UI, with a 64px 書面語/口語 register tile. Plain text uses the system font; compact layouts use shorter review pages and conservative CJK line widths. Register/review/cancel controls remain dwell-operated. Only fresh voice-confirm or silent one-second mouth evidence can insert; blink/wink/dwell cannot confirm.
+- NativeBridge.typeText now accepts additional field-bound ActionGate capabilities. It validates and consumes each capability once, checks the focused selection before typing, and checks the exact newly inserted range after each Unicode chunk, allowing CRLF/LF normalization. Pause revisions are checked across awaits. No Enter/Send, clipboard paste, shell, code execution or automatic submit command is introduced.
+- Undo stages a separate proposal and confirmation. After validating focus/caret/owned insertion, native selects only that range; NativeBridge types the original selection or sends one Backspace for an originally empty selection. No broad Ctrl+Z, guessed deletion count or automatic retry is used. Interrupted/uncertain insertions disclose possible partial text and do not create an undo receipt.
+- Added setup/acceptance guide and ADR0016; recorded the selected-context and register decision in open-questions.md. No new dependencies, scripts or workflows; AGENTS Commands table required no P5.2 change and Hard rules remain unchanged. Existing uncommitted P5.1 work was preserved.
+
+Measured checks
+- pnpm verify PASS: lint zero warnings, all workspace typechecks, 112 test files / 515 tests passed; 1 file / 6 existing tests skipped. Final Vitest duration 4.46 s on this macOS host.
+- pnpm native:build PASS for darwin-arm64. All three new native exports are present; the export smoke performed no accessibility query or input.
+- Electron desktop production build PASS, with existing third-party Rollup annotation warnings only.
+- cargo clippy -D warnings PASS on aarch64-apple-darwin, x86_64-apple-darwin and x86_64-pc-windows-msvc. Windows is a cross-target compile/lint check, not a live UIA/provider test.
+- cargo test --no-default-features PASS: 7 tests. The fake accessibility worker exercises text capture/check dispatch; host filtering tests reject known execution surfaces. No live field was queried.
+- MockProvider + actual main NativeBridge + MockNativeInput full-flow tests PASS: selected-only request -> proposal -> fresh voice/mouth confirmation -> one insertion -> separately confirmed restoration/removal. Tests cover register round-trip/original-source reuse, prior proposal invalidation, review requirements, forbidden click evidence, stale voice, duplicate confirmation, unavailable fields, selection/focus changes, expiry, pause/cancel, Unicode/symbols, chunk interruption, wrong schema/register and one repair retry.
+- InputController gaze-only test PASS at a 375px-wide scripted display: rewrite tile, 64px register control, card control bounds, register re-request, click rejection and silent mouth-confirmed insertion; microphone was never enabled. Additional core test covers one-line review pagination on shorter displays.
+- Antislop visual verification remains pending: the browser approval gate declined opening the local scripted UI preview (http://127.0.0.1:4199). No alternate browser or workaround was attempted. The fixture server was stopped after denial. Automated state/geometry tests and builds do not constitute a visual pass.
+- git diff --check PASS. AGENTS Hard rules compared with HEAD and unchanged. No live provider calls, camera/mic capture, real OS text insertion or user-data recording occurred during this step.
+
+Defaults and limitations
+- Q4: fresh voice-confirm or one-second silent mouth hold; never blink/wink/dwell confirmation. Q8: no interaction logging. Q12: Traditional HK Chinese, with explicit per-proposal written/colloquial register. Q15 for Excel unchanged; separate selected-only text policy documented. Phase 4 gate accepted from the maintainer's statement, not re-measured here.
+- Real macOS/Windows field compatibility, visible layout and IME behavior remain manual acceptance checks. Unsupported providers, read-only/password fields, missing selection APIs or unavailable native helpers fail closed; there is no clipboard/full-field fallback. Rebuild the native addon on each OS.
+- Arbitrary fields expose no common version/transaction API. Focus/range/content guards are optimistic, and other applications can change focus between OS calls. A mismatch stops later chunks but cannot recall delivered input. Insertion/undo acknowledgements are never automatically retried. Known-host filtering is not a sandbox against arbitrary applications or other same-user software.
+- The native snapshot lifetime starts at capture, so inference/review consume the same 60-second window. Snapshot objects are retained only in memory and become unusable at expiry; memory is replaced by later capture or released at process exit. No field contents or receipts are persisted.
+
+Manual checks (macOS and Windows)
+- Quit Gestura, run pnpm native:build and pnpm dev with the existing provider settings. On macOS grant Accessibility permission. Use a disposable plain-text field in TextEdit/Notepad or another target application.
+- Test formal rewrite, English/Chinese translation and reply with empty/nonempty selection in English/Cantonese/mixed commands. Include Chinese, emoji, line endings and = ( ) : $. Confirm only selected text accompanies the request; no whole-field/clipboard fallback should occur.
+- Verify complete card text/explanations and all register/review/cancel controls at narrow width and shorter display scaling. Toggle English -> Cantonese -> English and verify original selection is reused. Cancel before confirmation must leave text and selection unchanged.
+- Verify fresh voice/silent mouth confirmation inserts once; blink/wink/dwell and repeated confirm do not insert. Exercise gaze-only request composition, register controls, review, cancel and staged undo with mic off.
+- Change focus/field/selection, expire the snapshot or pause before/during insertion. Verify refusal or disclosed partial insertion, without later automatic injection. Inspect the destination before retrying an uncertain result.
+- Stage Undo that, review and separately confirm restoration/removal. Move/change the insertion range first and verify refusal to overwrite unrelated text. Verify no Enter/Send, broad Ctrl+Z or execution command occurs.
+- Test read-only, password and unsupported controls and known terminal/VS Code hosts: no provider request or plain-text injection. Record actual supported/unsupported applications without claiming unmeasured coverage.
+- Follow docs/plain-text-setup.md; complete the visual check denied to the agent and Windows runtime acceptance before marking those checks passed.
+
+Changed files (P5.2 manifest)
+- packages/core/src/plain-text.ts; plain-text.test.ts; intent.ts; formula-loop.ts; palette.ts; palette.test.ts; index.ts
+- packages/intent/commands.yaml; src/commands.generated.json; src/matcher.ts; src/plain-text.test.ts
+- packages/genai/src/plain-text/router.ts; router.test.ts; packages/genai/src/index.ts
+- apps/desktop/src/main/plain-text/controller.ts; controller.test.ts
+- apps/desktop/src/main/native/index.ts; native/plain-text.test.ts
+- apps/desktop/src/main/input/controller.ts; input/plain-text.test.ts; apps/desktop/src/main/index.ts
+- apps/desktop/src/renderer/overlay/FormulaCard.tsx; renderer/shared/styles.css
+- native/gestura-native/index.d.ts; mock/index.ts; src/ui.rs
+- native/gestura-native/src/macos/mod.rs; ui.rs; text.rs; src/windows/mod.rs; ui.rs; text.rs
+- docs/open-questions.md; docs/plain-text-setup.md; docs/decisions/0016-plain-text-selected-fields.md; docs/PROGRESS.md
+
+Suggested commit message
+feat(P5.2): add confirmed selected-field text generation and register switching

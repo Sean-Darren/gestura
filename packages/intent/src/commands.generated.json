@@ -367,6 +367,92 @@
           "write 公式 {request}"
         ]
       }
+    },
+    {
+      "id": "rewrite-formally",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "rewrite this formally",
+          "rewrite formally",
+          "make this formal"
+        ],
+        "yue": [
+          "幫我改正式啲",
+          "改做書面語",
+          "寫正式啲"
+        ],
+        "mixed": [
+          "幫我 rewrite formally",
+          "改 formal 啲"
+        ]
+      }
+    },
+    {
+      "id": "reply-request",
+      "slots": {
+        "request": "free-text"
+      },
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "write a reply saying {request}",
+          "reply saying {request}"
+        ],
+        "yue": [
+          "幫我覆佢話 {request}",
+          "幫我寫回覆 {request}"
+        ],
+        "mixed": [
+          "幫我 reply {request}",
+          "write 回覆 {request}"
+        ]
+      }
+    },
+    {
+      "id": "translate-en",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "translate to English",
+          "translate this to English"
+        ],
+        "yue": [
+          "譯做英文",
+          "翻譯成英文",
+          "幫我譯做英文"
+        ],
+        "mixed": [
+          "translate 做英文",
+          "譯做 English"
+        ]
+      }
+    },
+    {
+      "id": "translate-zh",
+      "slots": {},
+      "pendingOnly": false,
+      "exactOnly": false,
+      "phrasings": {
+        "en": [
+          "translate to Chinese",
+          "translate this to Chinese"
+        ],
+        "yue": [
+          "譯做中文",
+          "翻譯成中文",
+          "幫我譯做中文"
+        ],
+        "mixed": [
+          "translate 做中文",
+          "譯做 Chinese"
+        ]
+      }
     }
   ]
 }

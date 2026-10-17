@@ -22,6 +22,14 @@ pub mod addon {
     thread_local! {
         static INPUT: RefCell<Option<PlatformInput>> = const { RefCell::new(None) };
     }
+    #[napi]
+    pub fn protect_pairing_directory(path: String) -> napi::Result<()> {
+        #[cfg(target_os = "macos")]
+        let result = super::macos::pairing::protect_directory(&path);
+        #[cfg(target_os = "windows")]
+        let result = super::windows::pairing::protect_directory(&path);
+        result.map_err(api_error)
+    }
     fn api_error(message: String) -> napi::Error {
         napi::Error::from_reason(message)
     }

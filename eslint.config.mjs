@@ -1,3 +1,4 @@
+import { vscodeBoundary } from './tools/eslint/vscode-boundary.mjs'
 import { defineConfig } from 'eslint/config'
 import tseslint from '@electron-toolkit/eslint-config-ts'
 import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier'
@@ -115,9 +116,14 @@ export default defineConfig(
       ]
     }
   },
+  {
+    files: ['integrations/vscode/**/*.{ts,tsx,mjs}'],
+    plugins: { gestura: { rules: { 'vscode-boundary': vscodeBoundary } } },
+    rules: { 'gestura/vscode-boundary': 'error' }
+  },
   eslintConfigPrettier,
   {
-    files: ['native/gestura-native/**/*.mjs', 'scripts/**/*.mjs'],
+    files: ['native/gestura-native/**/*.mjs', 'scripts/**/*.mjs', 'tools/eslint/**/*.mjs'],
     rules: { '@typescript-eslint/explicit-function-return-type': 'off' }
   }
 )

@@ -17,11 +17,18 @@ export const INTENT_IDS = [
   'go-to',
   'confirm',
   'cancel',
-  'formula-request'
+  'formula-request',
+  'rewrite-formally',
+  'reply-request',
+  'translate-en',
+  'translate-zh'
 ] as const
 export const IntentIdSchema = z.enum(INTENT_IDS)
 const empty = z.object({}).strict()
 const plainIds = [
+  'rewrite-formally',
+  'translate-en',
+  'translate-zh',
   'click',
   'double-click',
   'right-click',
@@ -55,6 +62,12 @@ export const IntentSchema = z.discriminatedUnion('id', [
   z.object({ id: z.enum(plainIds), slots: empty }).strict(),
   z
     .object({ id: z.literal('go-to'), slots: z.object({ range: CellRangeSchema }).strict() })
+    .strict(),
+  z
+    .object({
+      id: z.literal('reply-request'),
+      slots: z.object({ request: z.string().trim().min(1).max(10000) }).strict()
+    })
     .strict(),
   z
     .object({
@@ -119,7 +132,7 @@ export const CommandCatalogueSchema = z
       const expected =
         command.id === 'go-to'
           ? { range: 'range' }
-          : command.id === 'formula-request'
+          : command.id === 'formula-request' || command.id === 'reply-request'
             ? { request: 'free-text' }
             : {}
       if (JSON.stringify(command.slots) !== JSON.stringify(expected))
@@ -132,7 +145,10 @@ export const CommandCatalogueSchema = z
         })
       for (const variants of Object.values(command.phrasings))
         for (const text of variants) {
-          if (command.id === 'formula-request' && !text.endsWith('{request}'))
+          if (
+            (command.id === 'formula-request' || command.id === 'reply-request') &&
+            !text.endsWith('{request}')
+          )
             ctx.addIssue({
               code: 'custom',
               message: 'Free-text request must be the final template slot'

@@ -1,0 +1,6 @@
+import * as vscode from 'vscode'
+import { spawn } from 'node:child_process'
+vscode.window.createTerminal('forbidden')
+vscode.tasks.executeTask(task)
+vscode.debug.startDebugging(folder, configuration)
+spawn('forbidden')

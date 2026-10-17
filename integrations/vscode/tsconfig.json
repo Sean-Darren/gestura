@@ -4,6 +4,9 @@
     "src/**/*.ts"
   ],
   "compilerOptions": {
-    "types": []
+    "types": [
+      "node",
+      "vscode"
+    ]
   }
 }

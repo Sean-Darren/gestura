@@ -90,10 +90,10 @@ export class IntentMatcher {
         const slot = extractSlot(input, prefix, suffix)
         const range = slot ? normalizeRange(slot) : undefined
         if (range) intent = { id: 'go-to', slots: { range } }
-      } else if (pattern.id === 'formula-request') {
+      } else if (pattern.id === 'formula-request' || pattern.id === 'reply-request') {
         const [prefix] = splitTemplate(pattern.phrase, 'request')
         const request = input.startsWith(prefix) ? rawRequest(text, prefix) : undefined
-        if (request) intent = { id: 'formula-request', slots: { request } }
+        if (request) intent = { id: pattern.id, slots: { request } }
       } else if (input === pattern.normalized) intent = { id: pattern.id, slots: {} }
       if (intent) exact.push({ intent, pattern })
     }
@@ -131,8 +131,12 @@ export class IntentMatcher {
     for (const pattern of this.patterns) {
       if (pattern.exactOnly) continue
       // Fuzzy matching changes command words only. Cell references and free text never get guessed.
-      if (pattern.id === 'go-to' || pattern.id === 'formula-request') {
-        if (pattern.id === 'formula-request') continue
+      if (
+        pattern.id === 'go-to' ||
+        pattern.id === 'formula-request' ||
+        pattern.id === 'reply-request'
+      ) {
+        if (pattern.id === 'formula-request' || pattern.id === 'reply-request') continue
         const [prefix, suffix] = splitTemplate(pattern.phrase, 'range')
         const cells =
           /(?<![a-z0-9])([a-z]{1,3}\s*[1-9]\d*(?:\s*(?::|到|至|to)\s*[a-z]{1,3}\s*[1-9]\d*)?)(?![a-z0-9])/g

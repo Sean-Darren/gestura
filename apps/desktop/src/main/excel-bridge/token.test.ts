@@ -22,3 +22,7 @@ describe('pairing token', () => {
     expect(tokensMatch('abc123', '')).toBe(false)
   })
 })
+
+it('rejects non-ASCII credentials without throwing on unequal byte lengths', () => {
+  expect(tokensMatch('a'.repeat(64), 'é'.repeat(64))).toBe(false)
+})

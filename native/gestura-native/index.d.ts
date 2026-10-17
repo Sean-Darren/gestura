@@ -14,6 +14,9 @@ export interface NativeDisplay {
 }
 /** Raw addon interface. Desktop callers use the validated main-process wrapper. */
 export interface NativeInput {
+  captureFocusedText(token: string): Promise<{ token: string; selectedText: string } | null>
+  checkTextTarget(token: string, text: string, after: boolean): Promise<boolean>
+  selectInsertedText(token: string, text: string): Promise<boolean>
   elementAt(x: number, y: number): Promise<UiElement | null>
   elementsNear(x: number, y: number, radiusPx: number): Promise<UiElement[]>
   foregroundApp(): Promise<ForegroundApp>
@@ -30,4 +33,4 @@ export interface NativeInput {
   hasInputPermission(): boolean
   requestInputPermission(): boolean
 }
-export function loadNativeBinding(): NativeInput
+export function loadNativeBinding(): NativeInput & { protectPairingDirectory(path: string): void }

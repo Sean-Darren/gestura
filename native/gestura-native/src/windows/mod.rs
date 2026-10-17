@@ -1,3 +1,5 @@
+pub(crate) mod text;
+pub(crate) mod pairing;
 pub(crate) mod ui;
 use crate::input::*;
 use std::{mem::size_of, ptr};

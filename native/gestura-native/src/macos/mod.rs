@@ -1,3 +1,5 @@
+pub(crate) mod text;
+pub(crate) mod pairing;
 pub(crate) mod ui;
 use crate::input::*;
 use core_foundation::{

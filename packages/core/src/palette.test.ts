@@ -39,3 +39,10 @@ describe('palette schemas and review', () => {
     ).toBeUndefined()
   })
 })
+
+it('allows a single review line per page on short displays', async () => {
+  const { reviewTextPages } = await import('./palette')
+  const pages = reviewTextPages('甲'.repeat(60), 240, 1)
+  expect(pages.join('')).toBe('甲'.repeat(60))
+  expect(pages.every((page) => page.length <= 12)).toBe(true)
+})

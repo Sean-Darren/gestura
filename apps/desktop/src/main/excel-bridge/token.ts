@@ -7,6 +7,7 @@ export function createPairingToken(): string {
 
 /** Constant-time comparison; rejects length mismatches without touching the buffer. */
 export function tokensMatch(expected: string, provided: string): boolean {
-  if (expected.length !== provided.length) return false
-  return timingSafeEqual(Buffer.from(expected, 'utf8'), Buffer.from(provided, 'utf8'))
+  const left = Buffer.from(expected, 'utf8'),
+    right = Buffer.from(provided, 'utf8')
+  return left.length === right.length && timingSafeEqual(left, right)
 }

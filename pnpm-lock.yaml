@@ -283,7 +283,27 @@ importers:
         specifier: ^0.25.0
         version: 0.25.12
 
-  integrations/vscode: {}
+  integrations/vscode:
+    dependencies:
+      '@gestura/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      ws:
+        specifier: ^8.18.0
+        version: 8.22.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.1
+        version: 22.20.5
+      '@types/vscode':
+        specifier: ^1.100.0
+        version: 1.140.0
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.2
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
 
   native/gestura-native:
     dependencies:
@@ -1083,6 +1103,9 @@ packages:
 
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+
+  '@types/vscode@1.140.0':
+    resolution: {integrity: sha512-KAB5RBZIgnUhpp4mKsVJPPHLOQKu6WtGy2xpfWjaajEXO4xIIC+UESAXLiQ9ewx6QD1uBmvC/S8BJzkbvv4bRA==}
 
   '@types/ws@8.18.2':
     resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
@@ -2948,6 +2971,8 @@ snapshots:
   '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
+
+  '@types/vscode@1.140.0': {}
 
   '@types/ws@8.18.2':
     dependencies:

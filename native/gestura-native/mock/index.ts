@@ -21,6 +21,31 @@ export class MockNativeInput implements NativeInput {
       coordinateSpace: 'pixels'
     }
   ]
+  focusedText: { token: string; selectedText: string } | null = null
+  fieldCurrent = true
+  insertedText = ''
+  async captureFocusedText(token: string): Promise<{ token: string; selectedText: string } | null> {
+    this.record('captureFocusedText', token)
+    if (!this.focusedText) return null
+    this.focusedText = { ...this.focusedText, token }
+    this.insertedText = ''
+    return { ...this.focusedText }
+  }
+  async checkTextTarget(token: string, text: string, after: boolean): Promise<boolean> {
+    this.record('checkTextTarget', token, text, after)
+    return (
+      this.fieldCurrent &&
+      token === this.focusedText?.token &&
+      (!after || this.insertedText === text)
+    )
+  }
+  async selectInsertedText(token: string, text: string): Promise<boolean> {
+    this.record('selectInsertedText', token, text)
+    if (!(await this.checkTextTarget(token, text, true))) return false
+    this.focusedText!.selectedText = text
+    this.insertedText = ''
+    return true
+  }
   permission = true
   layout: UiElement[] = []
   foreground: ForegroundApp = { appId: 'mock', windowTitle: 'Scripted layout' }
@@ -84,6 +109,7 @@ export class MockNativeInput implements NativeInput {
   }
   typeText(text: string): void {
     this.record('typeText', text)
+    this.insertedText += text
   }
   keyCombo(keys: string[]): void {
     this.record('keyCombo', keys)

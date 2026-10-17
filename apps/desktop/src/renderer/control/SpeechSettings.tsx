@@ -83,7 +83,7 @@ export function SpeechSettings(): JSX.Element {
       )}
       {(palette?.open || formulaVisible) && palette && (
         <section aria-label="Keyboard-accessible phrase palette" className="palette-control-copy">
-          <h3>{formulaVisible ? 'Formula review controls' : 'Phrase palette controls'}</h3>
+          <h3>{formulaVisible ? 'Proposal review controls' : 'Phrase palette controls'}</h3>
           <p>
             For insertion into another app, focus that app and use the overlay. These controls also
             support keyboard navigation.

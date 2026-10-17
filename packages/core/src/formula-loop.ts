@@ -1,6 +1,8 @@
 import { z } from 'zod'
 export const FormulaLoopStateSchema = z
   .object({
+    targetKind: z.enum(['formula', 'code', 'plain-text']).default('formula'),
+    register: z.enum(['standard_written', 'colloquial_cantonese']).optional(),
     phase: z.enum([
       'idle',
       'thinking',

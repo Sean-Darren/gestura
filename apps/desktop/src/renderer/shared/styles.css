@@ -709,3 +709,26 @@ main {
   box-sizing: border-box;
   font: inherit;
 }
+
+.plain-text-card .formula-card-body {
+  height: calc(100% - 216px);
+}
+.plain-proposal-text {
+  font:
+    500 20px/1.3 system-ui,
+    sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+
+.compact-text-card h2 {
+  font-size: 18px;
+}
+.compact-text-card .plain-proposal-text {
+  font-size: 18px;
+  margin: 4px 0;
+}
+.compact-text-card p {
+  margin: 3px 0;
+}

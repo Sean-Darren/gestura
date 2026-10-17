@@ -2,8 +2,44 @@
   "name": "@gestura/vscode",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "node build.mjs"
+  },
+  "displayName": "Gestura",
+  "description": "Review and confirm hands-free code proposals from the local Gestura app.",
+  "publisher": "gestura-local",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "gestura.connect",
+        "title": "Gestura: Connect to Desktop"
+      }
+    ]
+  },
+  "dependencies": {
+    "@gestura/core": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "@types/vscode": "^1.100.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.0"
   }
 }

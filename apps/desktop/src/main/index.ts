@@ -1,7 +1,18 @@
+import { homedir } from 'node:os'
+import { startCodeServer } from './vscode-bridge/server'
+import { CodeBridge } from './vscode-bridge/bridge'
+import { publishPairing } from './vscode-bridge/pairing'
+import { createPairingToken } from './excel-bridge/token'
 import { SnapController } from './snapping/controller'
 import { SpeechController } from './speech/controller'
 import { InputController } from './input/controller'
-import { CloudProvider, LocalProvider, FormulaRouter } from '@gestura/genai'
+import {
+  CloudProvider,
+  LocalProvider,
+  FormulaRouter,
+  CodeRouter,
+  PlainTextRouter
+} from '@gestura/genai'
 import { PaletteStore } from './input/store'
 import { createNativeUiQueries } from './native/ui-elements'
 import { LISTENING_HOTKEY } from '@gestura/core'
@@ -77,6 +88,9 @@ let visionController: VisionController | undefined
 let snapController: SnapController | undefined
 let speechController: SpeechController | undefined
 let inputController: InputController | undefined
+let codeServer: Awaited<ReturnType<typeof startCodeServer>> | undefined
+let codeBridge: CodeBridge | undefined
+let removeCodePairing: (() => Promise<void>) | undefined
 let excelBridgeHandle: ExcelBridgeHandle | undefined
 const inputUi = createNativeUiQueries(pause)
 let speechTransport: SpeechTransport | undefined
@@ -822,15 +836,30 @@ app.whenReady().then(async () => {
     (url, init) => net.fetch(url, init),
     config.network.allowlist
   )
-  let formulaRouter: FormulaRouter | undefined
-  if (config.genai.cloudProvider) {
-    formulaRouter = new FormulaRouter({
-      cloud: new CloudProvider({
+  try {
+    const token = createPairingToken()
+    codeServer = await startCodeServer(token)
+    removeCodePairing = await publishPairing(homedir(), { token, port: codeServer.port })
+    codeBridge = new CodeBridge(codeServer, pause)
+  } catch {
+    await codeServer?.close()
+    codeServer = undefined
+    console.warn(
+      'VS Code pairing unavailable. Rebuild the native addon with pnpm native:build, then restart Gestura.'
+    )
+  }
+  const cloudProvider = config.genai.cloudProvider
+    ? new CloudProvider({
         host: providerUrl(config.genai.cloudProvider.host, false),
         apiKey: config.genai.cloudProvider.apiKey,
         model: config.genai.cloudProvider.model,
         fetch: providerFetch
-      }),
+      })
+    : undefined
+  let formulaRouter: FormulaRouter | undefined
+  if (cloudProvider) {
+    formulaRouter = new FormulaRouter({
+      cloud: cloudProvider,
       ...(config.genai.localProvider.enabled && config.genai.localProvider.model
         ? {
             local: new LocalProvider({
@@ -864,6 +893,12 @@ app.whenReady().then(async () => {
     pointerClick: (kind) => pointerController?.clickAtCursor(kind),
     clipboard: () => clipboard.readText(),
     save: (settings) => paletteStore.save(settings),
+    ...(cloudProvider
+      ? { plainTextRouter: new PlainTextRouter(cloudProvider, config.genai.formula.timeoutMs) }
+      : {}),
+    ...(codeBridge && cloudProvider
+      ? { codeBridge, codeRouter: new CodeRouter(cloudProvider, config.genai.formula.timeoutMs) }
+      : {}),
     ...(excelBridgeHandle ? { excelBridge: excelBridgeHandle.bridge } : {}),
     ...(formulaRouter ? { formulaRouter } : {}),
     formulaAnchor: (target) => {
@@ -929,6 +964,9 @@ app.on('before-quit', (event) => {
   nativeInput.dispose()
   nativeUi.dispose()
   inputUi.dispose()
+  codeBridge?.dispose()
+  void codeServer?.close()
+  void removeCodePairing?.()
   excelBridgeHandle?.bridge.dispose()
   void excelBridgeHandle?.server.close()
   globalShortcut.unregisterAll()

@@ -39,3 +39,36 @@ The AI coding agent reads this file before every step.
 | 2026-10-14 | Package manager: pnpm. Do not use npm or yarn in this repo. |
 | 2026-10-14 | UI components: Tailwind + shadcn/ui; 21st.dev components allowed via the 21st-ui skill at development time only, with the AGENTS.md accessibility and no-runtime-network rules. Not used for the overlay. |
 | 2026-10-14 | The agent never commits or pushes; the human does (AGENTS.md hard rule 11). |
+
+## Code context policy — P5.1 (code equivalent of Q15)
+
+Approved in the P5.1 request: only the active editor's languageId, fileName
+(basename, not an absolute path), selected text, and at most 40 lines around
+the cursor may be sent to the provider for a code request. No workspace scan,
+other files, diagnostics, terminal output, Git data, absolute document URI or
+full-document snapshot is included. Selection and surrounding text each have
+16,000-character limits; oversized context is rejected rather than expanded.
+Document versions, selection offsets, opaque snapshot IDs and connection
+revisions stay on device. Full documents are held only in extension memory to
+render the diff and guard exact undo; no document is saved automatically.
+Corrections include the prior user request/code/correction, bounded to 20
+history messages. This is separate from Excel's Q15 sample-value policy.
+
+The maintainer confirmed Phase 4 benchmarks passed before approving P5.1.
+This records the maintainer's gate decision, not a new benchmark measurement.
+
+
+## Plain-text context and register policy — P5.2
+
+Approved in the P5.2 request: provider context is only the text explicitly
+selected in the focused editable field. Operation, user-supplied reply/correction
+instruction and requested register accompany it; no field value, window title,
+accessibility tree, clipboard, screen pixels, other window or document context
+is sent. Selected and generated text are bounded to 10,000 UTF-16 units. Native
+field identity/range receipts stay local and are not provider inputs.
+
+The maintainer answered on 2026-10-18: for an English translation, selecting
+口語 switches to colloquial Cantonese; selecting 書面語 restores the original
+English translation request. Every register change revokes the prior proposal
+and requires fresh review and confirmation. Q12 remains Traditional Hong Kong
+Chinese for Chinese output; no existing question status is changed.

@@ -117,6 +117,7 @@ impl Owned {
     }
 }
 pub struct PlatformUi {
+    text: super::text::Backend,
     system: Owned,
     own_pid: u32,
 }
@@ -130,6 +131,7 @@ impl PlatformUi {
             AXUIElementSetMessagingTimeout(pointer, 0.01);
         }
         Ok(Self {
+            text: super::text::Backend::default(),
             system: Owned(pointer),
             own_pid: std::process::id(),
         })
@@ -277,6 +279,9 @@ fn role(value: &str) -> Option<&'static str> {
     }
 }
 impl UiBackend for PlatformUi {
+    fn capture_text(&mut self, token: &str) -> InputResult<Option<crate::ui::FocusedText>> { self.text.capture(token) }
+    fn check_text(&mut self, token: &str, text: &str, after: bool, select: bool) -> InputResult<bool> { self.text.check(token, text, after, select) }
+
     fn near(&mut self, x: f64, y: f64, radius_px: f64, at: bool) -> InputResult<Vec<UiElement>> {
         if !super::PlatformInput::has_permission() {
             return Err("Accessibility permission is required".into());

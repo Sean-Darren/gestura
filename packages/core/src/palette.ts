@@ -53,7 +53,7 @@ export const PALETTE_KEYS = [
 export const COMPOSER_CHARACTERS = Array.from(
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 =():$,+-*/.?!\'"_@#%&;<>[]{}\\\n'
 )
-export const COMPOSE_PURPOSES = ['text', 'phrase', 'range', 'formula'] as const
+export const COMPOSE_PURPOSES = ['text', 'phrase', 'range', 'formula', 'code', 'reply'] as const
 export const PaletteControlSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('activate'), id: z.string().min(1).max(100) }).strict(),
   z.object({ operation: z.literal('settings'), settings: PaletteConfigSchema }).strict(),
@@ -118,14 +118,15 @@ export function tileAt(
 }
 
 /** Bound review pages by lines as well as characters, including explicit newlines and CJK text. */
-export function reviewTextPages(text: string, width: number): string[] {
+export function reviewTextPages(text: string, width: number, maxLines = 3): string[] {
+  const lines = Number.isFinite(maxLines) ? Math.max(1, Math.min(3, Math.floor(maxLines))) : 3
   const columns = Math.max(12, Math.floor((Math.min(720, width - 24) - 28) / 16))
   const pages: string[] = []
   let page = '',
     line = 0,
     column = 0
   for (const c of text) {
-    if (line >= 3) {
+    if (line >= lines) {
       pages.push(page)
       page = ''
       line = 0
