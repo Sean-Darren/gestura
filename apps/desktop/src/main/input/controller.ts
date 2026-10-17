@@ -19,8 +19,7 @@ import type {
   Transcript,
   FaceFrame,
   ForegroundApp,
-  ConfirmationEvidence,
-  FormulaAction
+  ConfirmationEvidence
 } from '@gestura/core'
 import { IntentMatcher, normalizeRange } from '@gestura/intent'
 import { MouthHold } from '@gestura/gestures'
@@ -31,8 +30,7 @@ import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
 import type { ExcelBridge } from '../excel-bridge'
 import type { FormulaRouter } from '@gestura/genai'
-import { buildFormulaContext, FormulaRequestSchema } from '@gestura/genai'
-import type { FormulaRequest, FormulaResponse } from '@gestura/genai'
+import { FormulaController } from '../formula/controller'
 
 type Point = { x: number; y: number }
 type Composer = NonNullable<PaletteState['composer']>
@@ -82,7 +80,8 @@ export class InputController {
   private proposalTime = 0
   private busy = false
   private holdProgress = 0
-  private formulaHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  private formula: FormulaController | undefined
+  private formulaId: string | null = null
   private message = 'Open the palette, or start listening. Text always needs confirmation.'
   private suggestions: { label: string; intent: Intent }[] = []
   private tiles: PaletteTile[] = []
@@ -124,12 +123,39 @@ export class InputController {
       excelBridge?: ExcelBridge
       formulaRouter?: FormulaRouter
       shareSamples?: boolean
+      formulaAnchor?(
+        target: string
+      ): { x: number; y: number; width: number; height: number } | undefined
     }
   ) {
     this.settings = PaletteConfigSchema.parse(options.settings)
     const gestures = options.gestures ?? DEFAULT_GESTURE_CONFIG
     this.mouth = new MouthHold({ open: gestures.jawOpenScore, close: gestures.jawCloseScore })
     this.gate = new ActionGate(undefined, options.now)
+    if (options.excelBridge && options.formulaRouter)
+      this.formula = new FormulaController({
+        gate: this.gate,
+        bridge: options.excelBridge,
+        pause: options.pause,
+        now: options.now,
+        foreground: options.foreground,
+        display: options.display,
+        ...(options.formulaAnchor ? { anchor: options.formulaAnchor } : {}),
+        shareSamples: options.shareSamples ?? false,
+        generate: (request, signal) => options.formulaRouter!.generate(request, signal),
+        publish: () => {
+          const state = this.formula?.state
+          if (state) {
+            if (state.proposalId !== this.formulaId) {
+              this.mouth.reset()
+              this.holdProgress = 0
+              this.formulaId = state.proposalId
+            }
+            this.message = state.explanation
+          }
+          this.emit()
+        }
+      })
     options.gazeOnly(this.settings.gazeOnly)
     this.unsubscribe = options.pause.subscribe((paused) => {
       if (paused) {
@@ -151,7 +177,8 @@ export class InputController {
       open: this.open,
       paused: this.options.pause.paused,
       dictating: this.dictating,
-      busy: this.busy,
+      busy: this.busy || !!this.formula?.isWriting,
+      formula: this.formula?.state ?? null,
       page: this.page,
       pages: this.pages,
       reviewPage: this.reviewPage,
@@ -188,7 +215,7 @@ export class InputController {
     return this.queue
   }
   settle(): Promise<void> {
-    return this.queue
+    return this.queue.then(() => this.formula?.settle())
   }
   setSpeechState(live: boolean, activity?: 'unknown' | 'silent' | 'speaking'): void {
     this.listening = live
@@ -201,11 +228,19 @@ export class InputController {
   }
   gestureToggleListening(t: number): void {
     // P2.4 events share the fresh main-side hold guard; duplicate events in one frame are consumed once.
-    if (this.pending || t !== this.mouthToggleAt || t === this.consumedMouthToggle) return
+    if (
+      this.pending ||
+      this.formula?.confirmable ||
+      t !== this.mouthToggleAt ||
+      t === this.consumedMouthToggle
+    )
+      return
     this.consumedMouthToggle = t
     this.toggleListening()
   }
   private cancel(): void {
+    if (this.formula && !['idle', 'cancelled'].includes(this.formula.state.phase))
+      this.formula.cancel()
     this.revision++
     if (this.pending) this.gate.cancel(this.pending.id)
     this.pending = null
@@ -241,55 +276,19 @@ export class InputController {
     this.message =
       'Review the text. Say confirm or close your mouth, then hold it open for one second.'
   }
-  private async handleFormulaRequest(utterance: string): Promise<void> {
-    if (!utterance.trim() || !this.options.excelBridge || !this.options.formulaRouter) {
+  private async handleFormulaRequest(
+    utterance: string,
+    lang: 'en' | 'yue' | 'mixed' = 'en'
+  ): Promise<void> {
+    if (!this.formula) {
       this.message = 'Formula generation requires the Excel bridge and a configured GenAI provider.'
       return
     }
-    const ctx = await this.options.excelBridge.getContext()
-    if (!ctx) {
-      this.message =
-        'Excel bridge not connected. Open Excel, confirm the add-in is loaded, then try again.'
-      return
-    }
-    const request: FormulaRequest = FormulaRequestSchema.parse({
-      utterance,
-      lang: 'en',
-      context: buildFormulaContext(ctx, this.options.shareSamples ?? false),
-      history: this.formulaHistory
-    })
-
-    this.message = 'Generating formula...'
-    this.emit()
-
-    const result: FormulaResponse = await this.options.formulaRouter.generate(request)
-
-    if (result.status === 'ok') {
-      this.formulaHistory.push(
-        { role: 'user', content: utterance },
-        { role: 'assistant', content: result.formula }
-      )
-      const proposalId = this.gate.propose({
-        kind: 'formula',
-        content: { formula: result.formula, target: result.targetCell }
-      } as FormulaAction)
-      this.gate.markShown(proposalId)
-      this.pending = {
-        id: proposalId,
-        text: `=${result.formula} → ${result.targetCell}`,
-        kind: 'formula',
-        target: 'Excel'
-      }
-      this.shown = true
-      this.proposalTime = this.options.now()
-      this.reviewPage = 0
-      this.target = await this.options.foreground()
-      this.message = result.explanation
-    } else if (result.status === 'needs_clarification') {
-      this.message = result.clarificationQuestion
-    } else {
-      this.message = result.explanation
-    }
+    this.cancel()
+    this.correctingFromPalette = false
+    this.open = false
+    this.composer = null
+    this.formula.start(utterance, lang)
   }
   control(value: PaletteControl): Promise<void> {
     const command = PaletteControlSchema.parse(value)
@@ -300,6 +299,11 @@ export class InputController {
     }
     return this.enqueue(async () => {
       if (command.operation === 'shown') {
+        if (command.id === this.formula?.state.proposalId) {
+          this.formula.present(command.id)
+          this.mouth.reset()
+          return
+        }
         if (
           command.id === this.pending?.id &&
           this.reviewPage === this.reviewPages.length - 1 &&
@@ -378,9 +382,44 @@ export class InputController {
     ]
     this.tiles = dock.map((item, i) => ({
       ...item,
-      disabled: !!item.disabled || this.options.pause.paused || this.busy,
+      disabled:
+        !!item.disabled || this.options.pause.paused || this.busy || !!this.formula?.isWriting,
       bounds: { x: 12 + i * (dockWidth + 8), y: 12, width: dockWidth, height: 64 }
     }))
+    const formula = this.formula?.state
+    if (formula && !['idle', 'cancelled'].includes(formula.phase) && formula.bounds) {
+      const b = formula.bounds,
+        w = (b.width - 32) / 2
+      this.open = false
+      const controls = [
+        { id: 'formula:cancel', label: 'Cancel', disabled: false },
+        {
+          id: 'formula:correct',
+          label: 'Correct',
+          disabled: !['proposed', 'clarification'].includes(formula.phase)
+        },
+        { id: 'formula:previous', label: 'Back text', disabled: formula.reviewPage === 0 },
+        {
+          id: 'formula:next',
+          label: 'Next text',
+          disabled: formula.reviewPage === formula.reviewPages - 1
+        }
+      ]
+      if (formula.canUndo) controls[1] = { id: 'formula:undo', label: 'Undo that', disabled: false }
+      this.tiles.push(
+        ...controls.map((item, i) => ({
+          ...item,
+          disabled: item.disabled || this.options.pause.paused || !!this.formula?.isWriting,
+          bounds: {
+            x: b.x + 12 + (i % 2) * (w + 8),
+            y: b.y + b.height - 144 + Math.floor(i / 2) * 72,
+            width: w,
+            height: 64
+          }
+        }))
+      )
+      return
+    }
     let y = this.pending ? 414 : 132
     if (this.pending) {
       this.tiles.push(
@@ -435,6 +474,16 @@ export class InputController {
   }
   reserved(point: Point): boolean {
     if (tileAt(this.tiles, point)) return true
+    const formula = this.formula?.state
+    const bounds = formula && !['idle', 'cancelled'].includes(formula.phase) ? formula.bounds : null
+    if (
+      bounds &&
+      point.x >= bounds.x &&
+      point.x < bounds.x + bounds.width &&
+      point.y >= bounds.y &&
+      point.y < bounds.y + bounds.height
+    )
+      return true
     if (this.open) {
       const bottom = Math.max(...this.tiles.map((tile) => tile.bounds.y + tile.bounds.height))
       if (
@@ -455,8 +504,12 @@ export class InputController {
   }
   /** Returns true for all overlay regions, even disabled tiles; never fall through to an OS click. */
   click(point: Point): boolean {
-    if (this.busy) return true
+    if (this.busy || this.formula?.isWriting) return true
     const tile = tileAt(this.tiles, point)
+    const formula = this.formula?.state
+    // Formula-card clicks never activate controls. Cancellation/correction use fixed dwell instead.
+    if (formula?.bounds && !['idle', 'cancelled'].includes(formula.phase) && this.reserved(point))
+      return true
     if (!this.reserved(point) && this.armedDrag) {
       this.armedDrag = false
       this.options.dragging(true)
@@ -501,6 +554,7 @@ export class InputController {
     this.point(point, this.lastPointTime)
   }
   tick(systemPoint: Point): void {
+    this.formula?.tick()
     if (this.options.now() - this.lastPointTime > 250) this.point(systemPoint, this.options.now())
     if (this.pending && this.options.now() - this.proposalTime >= 60000) {
       this.cancel()
@@ -517,6 +571,7 @@ export class InputController {
     if (
       !live ||
       this.busy ||
+      this.formula?.isWriting ||
       this.options.pause.paused ||
       !frame.faceDetected ||
       frame.tCapture <= this.lastFrame ||
@@ -529,17 +584,23 @@ export class InputController {
     }
     this.lastFrame = frame.tCapture
     const pending = this.pending
+    const formulaPending = this.formula?.confirmable
     const permitted =
-      (!this.listening || this.speechActivity === 'silent') && (!pending || this.shown)
+      (!this.listening || this.speechActivity === 'silent') &&
+      (formulaPending ? !!this.formula?.isShown : !pending || this.shown)
     const hold = this.mouth.update(
       frame.tCapture,
       frame.blendshapes.jawOpen,
       permitted,
-      pending ? 1000 : (this.options.gestures ?? DEFAULT_GESTURE_CONFIG).jawHoldMs
+      pending || formulaPending ? 1000 : (this.options.gestures ?? DEFAULT_GESTURE_CONFIG).jawHoldMs
     )
     this.holdProgress = hold.progress
     if (hold.fired) {
-      if (pending) void this.enqueue(() => this.confirm(pending.id, { kind: 'held-mouth-gesture' }))
+      if (formulaPending) {
+        const id = this.formulaId
+        void this.enqueue(() => this.formula!.confirm({ kind: 'held-mouth-gesture' }, id))
+      } else if (pending)
+        void this.enqueue(() => this.confirm(pending.id, { kind: 'held-mouth-gesture' }))
       else {
         this.mouthToggleAt = frame.tCapture
         this.gestureToggleListening(frame.tCapture)
@@ -552,9 +613,38 @@ export class InputController {
       if (this.settings.gazeOnly || this.options.pause.paused || !this.listening) return
       let result = this.matcher.match(
         transcript.text,
-        { pendingProposal: !!this.pending },
+        { pendingProposal: !!this.pending || !!this.formula?.active },
         transcript.tSpeechStart
       )
+      const lang =
+        transcript.lang === 'en'
+          ? 'en'
+          : transcript.lang === 'mixed'
+            ? 'mixed'
+            : /[\u3400-\u9fff]/u.test(transcript.text)
+              ? 'yue'
+              : 'en'
+      if (this.formula?.active) {
+        if (result.kind === 'match' && result.intent.id === 'confirm') {
+          if (result.evidence) await this.formula.confirm(result.evidence)
+          return
+        }
+        if (result.kind === 'match' && result.intent.id === 'undo-that') {
+          await this.formula.undo({ kind: 'voice-confirm', tSpeechStart: transcript.tSpeechStart })
+          return
+        }
+        if (
+          !(result.kind === 'match' && ['cancel', 'pause'].includes(result.intent.id)) &&
+          ['proposed', 'clarification'].includes(this.formula.state.phase)
+        ) {
+          this.formula.start(transcript.text, lang, true)
+          return
+        }
+      }
+      if (result.kind === 'match' && result.intent.id === 'formula-request') {
+        await this.handleFormulaRequest(result.intent.slots.request, lang)
+        return
+      }
       if (!this.dictating && result.kind === 'suggestions') {
         const revision = this.revision
         const foreground = await this.options.foreground().catch(() => undefined)
@@ -563,7 +653,7 @@ export class InputController {
         if (foreground && /excel/i.test(foreground.appId))
           result = this.matcher.match(
             transcript.text,
-            { app: 'excel', pendingProposal: !!this.pending },
+            { app: 'excel', pendingProposal: !!this.pending || !!this.formula?.active },
             transcript.tSpeechStart
           )
       }
@@ -580,7 +670,8 @@ export class InputController {
         if (result.intent.id === 'confirm') {
           if (this.pending && result.evidence) await this.confirm(this.pending.id, result.evidence)
         } else await this.dispatch(result.intent)
-      } else if (result.kind === 'genai-request') await this.dispatch(result.intent)
+      } else if (result.kind === 'genai-request')
+        await this.handleFormulaRequest(result.intent.slots.request, lang)
       else {
         this.suggestions = result.suggestions.map((s) => ({ label: s.phrasing, intent: s.intent }))
         this.open = true
@@ -619,13 +710,7 @@ export class InputController {
     this.busy = true
     this.emit()
     try {
-      if (pending.kind === 'formula') {
-        const wrote = await this.options.excelBridge?.writeFormula(confirmed)
-        this.lastInsertion = wrote && target ? { target, t: this.options.now() } : undefined
-        this.message = wrote
-          ? 'Formula written to the sheet. Undo that is available for 15 seconds.'
-          : 'Could not write the formula. Check that Excel is connected and the target cell is empty.'
-      } else {
+      {
         const complete = await this.options.bridge.typeText(pending.text, confirmed)
         this.lastInsertion = complete && target ? { target, t: this.options.now() } : undefined
         this.message = complete
@@ -717,6 +802,10 @@ export class InputController {
         this.message = 'Dictation off. Pending text still needs confirmation.'
         return
       case 'undo-that':
+        if (this.formula?.state.canUndo) {
+          await this.formula.undo()
+          return
+        }
         await this.undo()
         return
       case 'go-to':
@@ -766,6 +855,23 @@ export class InputController {
     this.layout()
     // Only presently visible, enabled actions can be selected over IPC.
     if (!this.tiles.some((tile) => tile.id === id && !tile.disabled)) return
+    if (id.startsWith('formula:')) {
+      if (id === 'formula:cancel') {
+        this.formula?.cancel()
+        this.message = 'Formula cancelled.'
+      } else if (id === 'formula:previous' || id === 'formula:next')
+        this.formula?.review(id === 'formula:next' ? 1 : -1)
+      else if (id === 'formula:undo') await this.formula?.undo()
+      else if (id === 'formula:correct') {
+        this.formula?.cancel('Compose a correction, then submit it for a fresh proposal.')
+        this.open = true
+        this.composer = 'formula'
+        this.draft = ''
+        this.page = 0
+        this.correctingFromPalette = true
+      }
+      return
+    }
     if (id === 'listen') this.toggleListening()
     else if (id === 'palette') {
       this.open = !this.open
@@ -817,12 +923,16 @@ export class InputController {
         }
         await this.dispatch({ id: 'go-to', slots: { range } })
       } else if (this.composer === 'formula') {
-        if (this.draft.trim())
+        if (this.correctingFromPalette && this.draft.trim()) {
+          this.formula?.start(this.draft, this.formula.state.lang, true)
+          this.correctingFromPalette = false
+        } else if (this.draft.trim())
           await this.dispatch({ id: 'formula-request', slots: { request: this.draft } })
       } else await this.propose(this.draft, 'dictation')
       this.composer = null
       this.page = 0
     } else if (id.startsWith('compose:')) {
+      this.correctingFromPalette = false
       this.cancel()
       this.composer = id.slice(8) as Composer
       this.draft = ''
@@ -860,7 +970,9 @@ export class InputController {
       if (suggestion) await this.dispatch(suggestion.intent)
     }
   }
+  private correctingFromPalette = false
   dispose(): void {
+    this.formula?.dispose()
     this.cancel()
     this.disposed = true
     this.unsubscribe()

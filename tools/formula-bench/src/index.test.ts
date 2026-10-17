@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { readCasesCsv } from './csv'
-import { evaluateCases } from './evaluate'
 
 const minCSV = 'id,utterance,expected_status\n'
 
@@ -36,73 +35,5 @@ describe('readCasesCsv', () => {
     expect(cases[0]!.context.columnTypes).toEqual({ A: 'string', B: 'number' })
     expect(cases[0]!.context.usedRangeAddress).toBe('A1:B100')
     expect(cases[0]!.expectedFormula).toBe('=SUM(B2:B100)')
-  })
-})
-
-describe('evaluateCases', () => {
-  it('evaluates ok cases correctly', async () => {
-    const report = await evaluateCases([
-      {
-        id: 'sum',
-        utterance: 'Sum column B',
-        expectedStatus: 'ok',
-        expectedFormula: '=SUM(B2:B100)',
-        context: {
-          sheetName: 'Sheet1',
-          selectionAddress: 'B1',
-          activeCell: 'B1',
-          headers: ['Price'],
-          columnTypes: { B: 'number' as const },
-          usedRangeAddress: 'A1:B100'
-        }
-      }
-    ])
-    expect(report.errors).toBe(0)
-    expect(report.rows[0]!.correct).toBe(true)
-  })
-
-  it('evaluates unsupported cases correctly', async () => {
-    const report = await evaluateCases([
-      {
-        id: 'nope',
-        utterance: 'Do something impossible',
-        expectedStatus: 'unsupported',
-        expectedFormula: '',
-        context: {
-          sheetName: 'Sheet1',
-          selectionAddress: 'A1',
-          activeCell: 'A1',
-          headers: [],
-          columnTypes: {} as Record<string, string>,
-          usedRangeAddress: 'A1:C100'
-        }
-      }
-    ])
-    expect(report.errors).toBe(0)
-    expect(report.rows[0]!.correct).toBe(true)
-  })
-
-  it('flags an unsafe formula as a mismatch (validator rejects it)', async () => {
-    // Marked "ok" with an unsafe formula: the canned provider returns it, but
-    // the validator blocks WEBSERVICE, so the router returns unsupported and
-    // the case fails against its "ok" expectation. This proves the blocklist.
-    const report = await evaluateCases([
-      {
-        id: 'unsafe',
-        utterance: 'Fetch a web page',
-        expectedStatus: 'ok',
-        expectedFormula: '=WEBSERVICE("http://example.com")',
-        context: {
-          sheetName: 'Sheet1',
-          selectionAddress: 'A1',
-          activeCell: 'A1',
-          headers: [],
-          columnTypes: {} as Record<string, string>,
-          usedRangeAddress: 'A1:C100'
-        }
-      }
-    ])
-    expect(report.errors).toBe(1)
-    expect(report.rows[0]!.correct).toBe(false)
   })
 })

@@ -1,0 +1,768 @@
+{
+  "generatedAt": "2026-10-17T15:19:15.676Z",
+  "inputs": {
+    "casesSha256": "c413644c53bc24c0636c1f0f2503db25a4d86498bcc762c101d0bcb7a87300b4",
+    "responsesSha256": "6f32a6cce5d2bcb205ce8df7ad4b3066e80d57168fbfa243913db0b035ad6e90"
+  },
+  "mode": "text",
+  "provider": "mock",
+  "evaluator": "HyperFormula 3.5.0 (GPLv3)",
+  "config": {
+    "shareSamples": false,
+    "absoluteTolerance": 1e-9,
+    "relativeTolerance": 1e-9,
+    "timeoutMs": 30000
+  },
+  "rows": [
+    {
+      "id": "aggregation-en",
+      "lang": "en",
+      "category": "aggregation",
+      "first": {
+        "utterance": "Add the amounts in A2 to A4",
+        "formula": "=0",
+        "value": 0,
+        "status": "ok",
+        "correct": false,
+        "error": null,
+        "latencyMs": 1.3837500000000205,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 11.429333999999983,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": {
+        "utterance": "No, use the specified range and operation. Add the amounts in A2 to A4",
+        "formula": "=SUM(A2:A4)",
+        "value": 60,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.27608299999997143,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 9.73724999999996,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "firstCorrect": false,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "aggregation-yue",
+      "lang": "yue",
+      "category": "aggregation",
+      "first": {
+        "utterance": "將 A2 至 A4 嘅金額加埋",
+        "formula": "=SUM(A2:A4)",
+        "value": 60,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.32887499999998226,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 7.021500000000003,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "aggregation-mixed",
+      "lang": "mixed",
+      "category": "aggregation",
+      "first": {
+        "utterance": "幫我 sum A2 到 A4",
+        "formula": "=SUM(A2:A4)",
+        "value": 60,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.180041000000017,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 10.62299999999999,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "lookup-en",
+      "lang": "en",
+      "category": "lookup",
+      "first": {
+        "utterance": "Look up the amount for Bo",
+        "formula": "=0",
+        "value": 0,
+        "status": "ok",
+        "correct": false,
+        "error": null,
+        "latencyMs": 0.19029199999999946,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 9.87766700000003,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": {
+        "utterance": "No, use the specified range and operation. Look up the amount for Bo",
+        "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+        "value": 25,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.11525000000000318,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 8.546999999999969,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "firstCorrect": false,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "lookup-yue",
+      "lang": "yue",
+      "category": "lookup",
+      "first": {
+        "utterance": "搵 Bo 嘅金額",
+        "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+        "value": 25,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.06479199999995444,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 12.153834000000018,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "lookup-mixed",
+      "lang": "mixed",
+      "category": "lookup",
+      "first": {
+        "utterance": "幫我 lookup Bo 嘅 amount",
+        "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+        "value": 25,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.28449999999998,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 4.938000000000045,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "logical-en",
+      "lang": "en",
+      "category": "logical",
+      "first": {
+        "utterance": "Return Pass if A2 is at least 60, otherwise Fail",
+        "formula": "=0",
+        "value": 0,
+        "status": "ok",
+        "correct": false,
+        "error": null,
+        "latencyMs": 0.05366599999996424,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.0916670000000295,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": {
+        "utterance": "No, use the specified range and operation. Return Pass if A2 is at least 60, otherwise Fail",
+        "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+        "value": "Pass",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.05262500000003456,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 6.137875000000008,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "firstCorrect": false,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "logical-yue",
+      "lang": "yue",
+      "category": "logical",
+      "first": {
+        "utterance": "A2 大過或等於 60 就寫 Pass，否則寫 Fail",
+        "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+        "value": "Pass",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.05349999999998545,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 7.730624999999975,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "logical-mixed",
+      "lang": "mixed",
+      "category": "logical",
+      "first": {
+        "utterance": "如果 A2 >= 60 就 Pass，唔係就 Fail",
+        "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+        "value": "Pass",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.06349999999997635,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 4.986249999999927,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "date-en",
+      "lang": "en",
+      "category": "date",
+      "first": {
+        "utterance": "Return the day number for the date in A2 B2 C2",
+        "formula": "=0",
+        "value": 0,
+        "status": "ok",
+        "correct": false,
+        "error": null,
+        "latencyMs": 0.09437499999989996,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.4747919999999795,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": {
+        "utterance": "No, use the specified range and operation. Return the day number for the date in A2 B2 C2",
+        "formula": "=DAY(DATE(A2,B2,C2))",
+        "value": 29,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.04204200000003766,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.4787919999999986,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "firstCorrect": false,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "date-yue",
+      "lang": "yue",
+      "category": "date",
+      "first": {
+        "utterance": "用 A2 B2 C2 組成日期，再攞日數",
+        "formula": "=DAY(DATE(A2,B2,C2))",
+        "value": 29,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.046959000000015294,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 7.249541999999906,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "date-mixed",
+      "lang": "mixed",
+      "category": "date",
+      "first": {
+        "utterance": "用 A2 B2 C2 做 date，再攞 day",
+        "formula": "=DAY(DATE(A2,B2,C2))",
+        "value": 29,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.06816599999990558,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.580832999999984,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "text-en",
+      "lang": "en",
+      "category": "text",
+      "first": {
+        "utterance": "Trim A2 and make it uppercase",
+        "formula": "=0",
+        "value": 0,
+        "status": "ok",
+        "correct": false,
+        "error": null,
+        "latencyMs": 0.09154100000000653,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.783166999999935,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": {
+        "utterance": "No, use the specified range and operation. Trim A2 and make it uppercase",
+        "formula": "=UPPER(TRIM(A2))",
+        "value": "HELLO WORLD",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.10229199999992034,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 5.799416000000065,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "firstCorrect": false,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "text-yue",
+      "lang": "yue",
+      "category": "text",
+      "first": {
+        "utterance": "刪走 A2 前後空格再轉大楷",
+        "formula": "=UPPER(TRIM(A2))",
+        "value": "HELLO WORLD",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.08970899999997073,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 4.438292000000047,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    },
+    {
+      "id": "text-mixed",
+      "lang": "mixed",
+      "category": "text",
+      "first": {
+        "utterance": "幫我 trim A2 然後 uppercase",
+        "formula": "=UPPER(TRIM(A2))",
+        "value": "HELLO WORLD",
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 0.038415999999983796,
+        "stage": "evaluation",
+        "asrMs": null,
+        "totalMs": 3.840334000000098,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "mock",
+            "failed": false
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    }
+  ],
+  "groups": [
+    {
+      "group": "overall",
+      "count": 15,
+      "firstCorrect": 10,
+      "afterCorrectionCorrect": 15,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 15,
+        "p50": 0.08970899999997073,
+        "p95": 1.3837500000000205
+      },
+      "correctionLatency": {
+        "count": 5,
+        "p50": 0.10229199999992034,
+        "p95": 0.27608299999997143
+      },
+      "endToEndLatency": {
+        "count": 15,
+        "p50": 7.730624999999975,
+        "p95": 21.166583999999943
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "lang:en",
+      "count": 5,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 5,
+      "firstAccuracy": 0,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 5,
+        "p50": 0.09437499999989996,
+        "p95": 1.3837500000000205
+      },
+      "correctionLatency": {
+        "count": 5,
+        "p50": 0.10229199999992034,
+        "p95": 0.27608299999997143
+      },
+      "endToEndLatency": {
+        "count": 5,
+        "p50": 11.582583,
+        "p95": 21.166583999999943
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "lang:yue",
+      "count": 5,
+      "firstCorrect": 5,
+      "afterCorrectionCorrect": 5,
+      "firstAccuracy": 1,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 5,
+        "p50": 0.06479199999995444,
+        "p95": 0.32887499999998226
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 5,
+        "p50": 7.249541999999906,
+        "p95": 12.153834000000018
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "lang:mixed",
+      "count": 5,
+      "firstCorrect": 5,
+      "afterCorrectionCorrect": 5,
+      "firstAccuracy": 1,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 5,
+        "p50": 0.06816599999990558,
+        "p95": 0.28449999999998
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 5,
+        "p50": 4.986249999999927,
+        "p95": 10.62299999999999
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:aggregation",
+      "count": 3,
+      "firstCorrect": 2,
+      "afterCorrectionCorrect": 3,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 3,
+        "p50": 0.32887499999998226,
+        "p95": 1.3837500000000205
+      },
+      "correctionLatency": {
+        "count": 1,
+        "p50": 0.27608299999997143,
+        "p95": 0.27608299999997143
+      },
+      "endToEndLatency": {
+        "count": 3,
+        "p50": 10.62299999999999,
+        "p95": 21.166583999999943
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:lookup",
+      "count": 3,
+      "firstCorrect": 2,
+      "afterCorrectionCorrect": 3,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 3,
+        "p50": 0.19029199999999946,
+        "p95": 0.28449999999998
+      },
+      "correctionLatency": {
+        "count": 1,
+        "p50": 0.11525000000000318,
+        "p95": 0.11525000000000318
+      },
+      "endToEndLatency": {
+        "count": 3,
+        "p50": 12.153834000000018,
+        "p95": 18.424667
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:logical",
+      "count": 3,
+      "firstCorrect": 2,
+      "afterCorrectionCorrect": 3,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 3,
+        "p50": 0.05366599999996424,
+        "p95": 0.06349999999997635
+      },
+      "correctionLatency": {
+        "count": 1,
+        "p50": 0.05262500000003456,
+        "p95": 0.05262500000003456
+      },
+      "endToEndLatency": {
+        "count": 3,
+        "p50": 7.730624999999975,
+        "p95": 11.229542000000038
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:date",
+      "count": 3,
+      "firstCorrect": 2,
+      "afterCorrectionCorrect": 3,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 3,
+        "p50": 0.06816599999990558,
+        "p95": 0.09437499999989996
+      },
+      "correctionLatency": {
+        "count": 1,
+        "p50": 0.04204200000003766,
+        "p95": 0.04204200000003766
+      },
+      "endToEndLatency": {
+        "count": 3,
+        "p50": 7.249541999999906,
+        "p95": 10.953583999999978
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:text",
+      "count": 3,
+      "firstCorrect": 2,
+      "afterCorrectionCorrect": 3,
+      "firstAccuracy": 0.6666666666666666,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 3,
+        "p50": 0.08970899999997073,
+        "p95": 0.09154100000000653
+      },
+      "correctionLatency": {
+        "count": 1,
+        "p50": 0.10229199999992034,
+        "p95": 0.10229199999992034
+      },
+      "endToEndLatency": {
+        "count": 3,
+        "p50": 4.438292000000047,
+        "p95": 11.582583
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "category:uncategorized",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    }
+  ],
+  "totals": {
+    "cases": 15,
+    "requests": 20,
+    "providerCalls": 20,
+    "estimatedCostUsd": 0
+  },
+  "notes": [
+    "Mock results test the harness, not LLM quality.",
+    "After-one-correction is cumulative over every case; failures and missing audio stay in the denominator.",
+    "First/correction latency measures generation through structured response, including internal retries and failed requests; evaluation time is excluded. Attempts that never reach generation have no generation latency. End-to-end includes evaluation and audio playback/ASR, summed across attempts.",
+    "Cost is an estimate from configured model rates and reported tokens, including retries; missing usage/pricing or failed billed calls makes cost unknown.",
+    "HyperFormula results are not proof of Excel compatibility."
+  ]
+}

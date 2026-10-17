@@ -1,9 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../../apps/desktop/src/utility/speech/sherpa.d.ts"
   ],
   "compilerOptions": {
-    "types": []
+    "types": [
+      "node"
+    ]
   }
 }

@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import { z } from 'zod'
-import { CellRangeSchema, ExcelContextSchema, FormulaActionSchema } from '@gestura/core'
-import type { ExcelContext, ExcelCommand, ExcelEvent } from '@gestura/core'
+import {
+  ExcelSelectionSchema,
+  ExcelContextSchema,
+  FormulaActionSchema,
+  RestoreCellActionSchema
+} from '@gestura/core'
+import type { ExcelContext, ExcelCommand, ExcelEvent, ExcelSnapshot } from '@gestura/core'
 import { isConfirmedAction } from '../action-gate'
 import type { ConfirmedAction } from '../action-gate'
 import type { ExcelServer } from './server'
@@ -12,8 +17,9 @@ const ConfirmedFormulaArgsSchema = z.tuple([
 ])
 
 type Pending = {
-  resolve: (value: ExcelContext | boolean | undefined) => void
+  resolve: (value: ExcelContext | ExcelSnapshot | boolean | undefined) => void
   timer: ReturnType<typeof setTimeout>
+  revision: number
 }
 
 export interface ExcelBridgeOptions {
@@ -43,6 +49,10 @@ export class ExcelBridge {
 
   private onEvent(event: ExcelEvent): void {
     if (event.type === 'ready') return
+    if (event.type === 'prepared') {
+      this.settle(event.id, event.snapshot)
+      return
+    }
     if (event.type === 'error') {
       if (event.id === undefined) return
       this.settle(event.id, false)
@@ -57,25 +67,30 @@ export class ExcelBridge {
     this.settle(event.id, parsed.success ? parsed.data : undefined)
   }
 
-  private settle(id: string, value: ExcelContext | boolean | undefined): void {
+  private settle(id: string, value: ExcelContext | ExcelSnapshot | boolean | undefined): void {
     const pending = this.pending.get(id)
     if (!pending) return
     this.pending.delete(id)
     clearTimeout(pending.timer)
-    pending.resolve(value)
+    pending.resolve(
+      this.options.server.clientCount === 1 &&
+        pending.revision === this.options.server.connectionRevision
+        ? value
+        : undefined
+    )
   }
 
   private async sendAndWait(
     command: ExcelCommand,
     id: string
-  ): Promise<ExcelContext | boolean | undefined> {
-    if (this.options.server.clientCount === 0) return undefined
+  ): Promise<ExcelContext | ExcelSnapshot | boolean | undefined> {
+    if (this.options.server.clientCount !== 1) return undefined
     return await new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
         resolve(undefined)
       }, this.timeoutMs)
-      this.pending.set(id, { resolve, timer })
+      this.pending.set(id, { resolve, timer, revision: this.options.server.connectionRevision })
       this.options.server.broadcast(command)
     })
   }
@@ -87,7 +102,33 @@ export class ExcelBridge {
       { type: 'getContext', id, includeSamples: this.options.shareSampleValues },
       id
     )
-    return typeof result === 'object' ? result : undefined
+    return typeof result === 'object' && 'activeCell' in result ? result : undefined
+  }
+  async prepareFormula(context: ExcelContext, target: string): Promise<ExcelSnapshot | undefined> {
+    if (!context.sessionId || !context.sheetId) return undefined
+    const id = randomUUID()
+    const result = await this.sendAndWait(
+      { type: 'prepareCell', id, target, sheetId: context.sheetId, sessionId: context.sessionId },
+      id
+    )
+    return typeof result === 'object' &&
+      'token' in result &&
+      result.sessionId === context.sessionId &&
+      result.sheetId === context.sheetId &&
+      result.target === target
+      ? result
+      : undefined
+  }
+  async restoreCell(confirmation: ConfirmedAction): Promise<boolean> {
+    if (!isConfirmedAction(confirmation) || this.used.has(confirmation)) return false
+    const parsed = RestoreCellActionSchema.safeParse(confirmation.action)
+    const age = this.now() - confirmation.confirmedAt
+    if (!parsed.success || age < 0 || age >= 60000) return false
+    this.used.add(confirmation)
+    const id = randomUUID()
+    return (
+      (await this.sendAndWait({ type: 'restoreCell', id, ...parsed.data.content }, id)) === true
+    )
   }
 
   /** Write a confirmed formula to its target cell. Rejects non-confirmed input. */
@@ -101,28 +142,64 @@ export class ExcelBridge {
     this.used.add(confirmation)
     const id = randomUUID()
     const result = await this.sendAndWait(
-      {
-        type: 'writeFormula',
-        id,
-        formula: action.data.content.formula,
-        target: action.data.content.target
-      },
+      action.data.content.snapshot
+        ? {
+            type: 'commitFormula',
+            id,
+            formula: action.data.content.formula,
+            snapshot: action.data.content.snapshot
+          }
+        : {
+            type: 'writeFormula',
+            id,
+            formula: action.data.content.formula,
+            target: action.data.content.target
+          },
       id
     )
     return result === true
   }
 
   /** Highlight referenced columns by changing the selection. Never writes. */
-  selectRange(address: string): boolean {
-    const parsed = CellRangeSchema.safeParse(address)
-    if (!parsed.success || this.options.server.clientCount === 0) return false
-    this.options.server.broadcast({ type: 'selectRange', id: randomUUID(), address: parsed.data })
+  selectRange(address: string, binding?: Pick<ExcelContext, 'sessionId' | 'sheetId'>): boolean {
+    const parsed = ExcelSelectionSchema.safeParse(address)
+    if (!parsed.success || this.options.server.clientCount !== 1) return false
+    this.options.server.broadcast({
+      type: 'selectRange',
+      id: randomUUID(),
+      address: parsed.data,
+      ...(binding?.sessionId ? { sessionId: binding.sessionId } : {}),
+      ...(binding?.sheetId ? { sheetId: binding.sheetId } : {})
+    })
     return true
   }
 
   dispose(): void {
     this.unsubscribe()
-    for (const pending of this.pending.values()) clearTimeout(pending.timer)
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer)
+      pending.resolve(undefined)
+    }
     this.pending.clear()
+  }
+  async highlight(
+    address: string,
+    binding: Pick<ExcelContext, 'sessionId' | 'sheetId'>
+  ): Promise<boolean> {
+    const parsed = ExcelSelectionSchema.safeParse(address)
+    if (!parsed.success || !binding.sessionId || !binding.sheetId) return false
+    const id = randomUUID()
+    return (
+      (await this.sendAndWait(
+        {
+          type: 'selectRange',
+          id,
+          address: parsed.data,
+          sessionId: binding.sessionId,
+          sheetId: binding.sheetId
+        },
+        id
+      )) === true
+    )
   }
 }

@@ -1,0 +1,311 @@
+{
+  "generatedAt": "2026-10-17T15:23:46.258Z",
+  "inputs": {
+    "casesSha256": "e990c11a524cb8beb35120526aa4bfb93071c1e2adebb47b7efe8922540fcbf5"
+  },
+  "mode": "audio",
+  "provider": "live",
+  "evaluator": "HyperFormula 3.5.0 (GPLv3)",
+  "config": {
+    "shareSamples": false,
+    "absoluteTolerance": 1e-9,
+    "relativeTolerance": 1e-9,
+    "timeoutMs": 30000,
+    "pricing": {
+      "currency": "USD",
+      "asOf": "2026-10-17",
+      "cloud": {
+        "inputPerMillion": 0,
+        "outputPerMillion": 0,
+        "model": "scripted-audio-transport-smoke-NOT-LLM"
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "audio-transport-only",
+      "lang": "yue",
+      "category": "uncategorized",
+      "first": {
+        "utterance": "呢幾個字都表達唔到我想講嘅意思",
+        "formula": "=1",
+        "value": 1,
+        "status": "ok",
+        "correct": true,
+        "error": null,
+        "latencyMs": 60.710000000000036,
+        "stage": "evaluation",
+        "asrMs": 7106.631,
+        "totalMs": 7192.791208000001,
+        "estimatedCostUsd": 0,
+        "calls": [
+          {
+            "provider": "cloud",
+            "failed": false,
+            "model": "scripted-audio-transport-smoke-NOT-LLM",
+            "inputTokens": 100,
+            "outputTokens": 20
+          }
+        ]
+      },
+      "correction": null,
+      "firstCorrect": true,
+      "afterCorrectionCorrect": true
+    }
+  ],
+  "groups": [
+    {
+      "group": "overall",
+      "count": 1,
+      "firstCorrect": 1,
+      "afterCorrectionCorrect": 1,
+      "firstAccuracy": 1,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 1,
+        "p50": 60.710000000000036,
+        "p95": 60.710000000000036
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 1,
+        "p50": 7192.791208000001,
+        "p95": 7192.791208000001
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "lang:en",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "lang:yue",
+      "count": 1,
+      "firstCorrect": 1,
+      "afterCorrectionCorrect": 1,
+      "firstAccuracy": 1,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 1,
+        "p50": 60.710000000000036,
+        "p95": 60.710000000000036
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 1,
+        "p50": 7192.791208000001,
+        "p95": 7192.791208000001
+      },
+      "estimatedCostPerRequestUsd": 0
+    },
+    {
+      "group": "lang:mixed",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:aggregation",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:lookup",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:logical",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:date",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:text",
+      "count": 0,
+      "firstCorrect": 0,
+      "afterCorrectionCorrect": 0,
+      "firstAccuracy": null,
+      "afterCorrectionAccuracy": null,
+      "firstLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "estimatedCostPerRequestUsd": null
+    },
+    {
+      "group": "category:uncategorized",
+      "count": 1,
+      "firstCorrect": 1,
+      "afterCorrectionCorrect": 1,
+      "firstAccuracy": 1,
+      "afterCorrectionAccuracy": 1,
+      "firstLatency": {
+        "count": 1,
+        "p50": 60.710000000000036,
+        "p95": 60.710000000000036
+      },
+      "correctionLatency": {
+        "count": 0,
+        "p50": null,
+        "p95": null
+      },
+      "endToEndLatency": {
+        "count": 1,
+        "p50": 7192.791208000001,
+        "p95": 7192.791208000001
+      },
+      "estimatedCostPerRequestUsd": 0
+    }
+  ],
+  "totals": {
+    "cases": 1,
+    "requests": 1,
+    "providerCalls": 1,
+    "estimatedCostUsd": 0
+  },
+  "notes": [
+    "Mock results test the harness, not LLM quality.",
+    "After-one-correction is cumulative over every case; failures and missing audio stay in the denominator.",
+    "First/correction latency measures generation through structured response, including internal retries and failed requests; evaluation time is excluded. Attempts that never reach generation have no generation latency. End-to-end includes evaluation and audio playback/ASR, summed across attempts.",
+    "Cost is an estimate from configured model rates and reported tokens, including retries; missing usage/pricing or failed billed calls makes cost unknown.",
+    "HyperFormula results are not proof of Excel compatibility."
+  ]
+}

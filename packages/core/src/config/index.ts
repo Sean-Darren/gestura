@@ -181,7 +181,7 @@ export const DEFAULT_EXCEL_CONFIG = ExcelConfigSchema.parse({})
 
 export const GenaiCloudProviderConfigSchema = z
   .object({
-    apiKey: z.string().min(1).describe('stored encrypted with safeStorage'),
+    apiKey: z.string().min(1).describe('main-process secret; never persist to renderer settings'),
     host: z.string().min(1).describe('added to network allowlist at runtime'),
     model: z.string().min(1).default('')
   })
@@ -248,3 +248,13 @@ export const BenchOptionsSchema = z
   })
   .strict()
 export const DEFAULT_BENCH_OPTIONS = BenchOptionsSchema.parse({})
+
+export const OpenRouterEnvironmentSchema = z.object({
+  OPENROUTER_API_KEY: z
+    .string()
+    .trim()
+    .max(512)
+    .regex(/^[^\s]*$/)
+    .optional(),
+  OPENROUTER_MODEL: z.string().trim().min(1).max(200).default('openai/gpt-4.1-mini')
+})

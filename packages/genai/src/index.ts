@@ -18,6 +18,19 @@ export interface GenerateResponse {
   json: unknown
   provider: string
   durationMs: number
+  model?: string
+  usage?: { inputTokens: number; outputTokens: number }
+}
+
+export function tokenUsage(input: unknown, output: unknown): GenerateResponse['usage'] {
+  return typeof input === 'number' &&
+    typeof output === 'number' &&
+    Number.isSafeInteger(input) &&
+    Number.isSafeInteger(output) &&
+    input >= 0 &&
+    output >= 0
+    ? { inputTokens: input, outputTokens: output }
+    : undefined
 }
 
 export interface Provider {

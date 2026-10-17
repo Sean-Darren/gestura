@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import type { PaletteState } from '@gestura/core'
+import { FormulaCard } from './FormulaCard'
 
 export function PhrasePalette(): JSX.Element | null {
   const [state, setState] = useState<PaletteState | null>(null)
@@ -29,6 +30,7 @@ export function PhrasePalette(): JSX.Element | null {
   if (!state) return null
   return (
     <section className="phrase-overlay" aria-label="Hands-free phrase palette">
+      <FormulaCard state={state.formula} hold={state.holdProgress} />
       {state.pending && (
         <section className="proposal-card" aria-label="Text proposal">
           <h2>
@@ -97,11 +99,12 @@ export function PhrasePalette(): JSX.Element | null {
           )}
         </button>
       ))}
-      {!state.pending && (
-        <p className="palette-status" role="status">
-          {state.busy ? 'Inserting confirmed text…' : state.message}
-        </p>
-      )}
+      {!state.pending &&
+        (!state.formula || ['idle', 'cancelled'].includes(state.formula.phase)) && (
+          <p className="palette-status" role="status">
+            {state.busy ? 'Inserting confirmed text…' : state.message}
+          </p>
+        )}
     </section>
   )
 }

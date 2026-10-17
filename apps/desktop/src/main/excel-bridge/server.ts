@@ -22,6 +22,7 @@ export interface ExcelServer {
   readonly port: number
   readonly url: string
   readonly clientCount: number
+  readonly connectionRevision: number
   broadcast(command: ExcelCommand): void
   subscribe(listener: (event: ExcelEvent) => void): () => void
   close(): Promise<void>
@@ -88,6 +89,7 @@ export async function startExcelServer(options: ExcelServerOptions): Promise<Exc
 
   const wss = new WebSocketServer({ noServer: true })
   const listeners = new Set<(event: ExcelEvent) => void>()
+  let connectionRevision = 0
 
   const rejectUpgrade = (socket: Duplex, code: number, message: string): void => {
     socket.write(`HTTP/1.1 ${code} ${message}\r\nConnection: close\r\n\r\n`)
@@ -109,6 +111,10 @@ export async function startExcelServer(options: ExcelServerOptions): Promise<Exc
   })
 
   wss.on('connection', (client: WebSocket) => {
+    connectionRevision++
+    client.on('close', () => {
+      connectionRevision++
+    })
     client.on('message', (data) => {
       let candidate: unknown
       try {
@@ -140,6 +146,9 @@ export async function startExcelServer(options: ExcelServerOptions): Promise<Exc
     url: `${options.tls ? 'https' : 'http'}://localhost:${address.port}`,
     get clientCount(): number {
       return wss.clients.size
+    },
+    get connectionRevision(): number {
+      return connectionRevision
     },
     broadcast(command: ExcelCommand): void {
       const parsed = ExcelCommandSchema.parse(command)

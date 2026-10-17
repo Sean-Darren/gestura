@@ -47,6 +47,7 @@ export default defineConfig({
           '@gestura/pointer',
           '@gestura/gestures',
           '@gestura/intent',
+          '@gestura/genai',
           'zod'
         ]
       }

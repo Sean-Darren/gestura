@@ -180,3 +180,46 @@ describe('BridgeClient', () => {
     expect(FakeWebSocket.instances).toHaveLength(3)
   })
 })
+
+describe('snapshot command delivery', () => {
+  it('deduplicates simultaneous commit and restore command IDs', async () => {
+    const office = {
+      getContext: vi.fn(),
+      writeFormula: vi.fn(),
+      selectRange: vi.fn(),
+      commitFormula: vi.fn(async () => {}),
+      restoreCell: vi.fn(async () => {})
+    }
+    const client = new BridgeClient({
+      token: 'secret',
+      origin: 'https://localhost:3510',
+      office,
+      WebSocketCtor: fakeCtor()
+    })
+    client.connect()
+    const socket = FakeWebSocket.instances[0]!
+    const snapshot = {
+      token: crypto.randomUUID(),
+      sessionId: crypto.randomUUID(),
+      sheetId: 'sheet-1',
+      target: 'B2',
+      before: { formula: null, value: '=literal' }
+    }
+    const commit = { type: 'commitFormula', id, snapshot, formula: '=SUM(A1:A3)' }
+    socket.emitMessage(commit)
+    socket.emitMessage(commit)
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(2))
+    expect(office.commitFormula).toHaveBeenCalledOnce()
+    const restore = {
+      type: 'restoreCell',
+      id: crypto.randomUUID(),
+      snapshot,
+      expectedFormula: '=SUM(A1:A3)'
+    }
+    socket.emitMessage(restore)
+    socket.emitMessage(restore)
+    await vi.waitFor(() => expect(socket.sent).toHaveLength(4))
+    expect(office.restoreCell).toHaveBeenCalledOnce()
+    client.disconnect()
+  })
+})

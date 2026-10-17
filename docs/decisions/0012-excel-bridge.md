@@ -32,12 +32,12 @@ reloads the page.
 
 ## Ctrl+Z behavior
 
-`range.formulas` / `range.values` writes mutate the workbook document model and enter Excel's
-undo stack, so Ctrl+Z is expected to undo an add-in formula write exactly as it would a typed
-formula. `range.select()` changes only the selection, which is not part of the undo stack —
-consistent with `selectRange`'s "never writes" contract. These are documented Office.js
-semantics; the spike sandbox has no Office host, so a live undo check in desktop Excel is a
-manual step and remains unverified here.
+Desktop Ctrl+Z behavior has not been measured on macOS or Windows. Office.js documents
+undo capabilities and limitations, but that does not verify this add-in on either host.
+P4.3 therefore uses an in-memory cell snapshot and a fresh ActionGate-confirmed restore,
+with session/sheet/cell checks. See [0013](0013-formula-confirmation-loop.md). Do not claim
+native undo works until a teammate records an actual desktop check. `selectRange` only
+changes selection; it never inserts content.
 
 ## Coverage and limitations
 

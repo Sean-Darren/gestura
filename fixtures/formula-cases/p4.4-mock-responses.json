@@ -1,0 +1,242 @@
+{
+  "Add the amounts in A2 to A4": {
+    "status": "ok",
+    "formula": "=0",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "No, use the specified range and operation. Add the amounts in A2 to A4": {
+    "status": "ok",
+    "formula": "=SUM(A2:A4)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "將 A2 至 A4 嘅金額加埋": {
+    "status": "ok",
+    "formula": "=SUM(A2:A4)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定範圍同運算。 將 A2 至 A4 嘅金額加埋": {
+    "status": "ok",
+    "formula": "=SUM(A2:A4)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "幫我 sum A2 到 A4": {
+    "status": "ok",
+    "formula": "=SUM(A2:A4)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定 range 同 operation。 幫我 sum A2 到 A4": {
+    "status": "ok",
+    "formula": "=SUM(A2:A4)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "Look up the amount for Bo": {
+    "status": "ok",
+    "formula": "=0",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "No, use the specified range and operation. Look up the amount for Bo": {
+    "status": "ok",
+    "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "搵 Bo 嘅金額": {
+    "status": "ok",
+    "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定範圍同運算。 搵 Bo 嘅金額": {
+    "status": "ok",
+    "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "幫我 lookup Bo 嘅 amount": {
+    "status": "ok",
+    "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定 range 同 operation。 幫我 lookup Bo 嘅 amount": {
+    "status": "ok",
+    "formula": "=VLOOKUP(\"Bo\",A2:B4,2,FALSE)",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "Return Pass if A2 is at least 60, otherwise Fail": {
+    "status": "ok",
+    "formula": "=0",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "No, use the specified range and operation. Return Pass if A2 is at least 60, otherwise Fail": {
+    "status": "ok",
+    "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "A2 大過或等於 60 就寫 Pass，否則寫 Fail": {
+    "status": "ok",
+    "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定範圍同運算。 A2 大過或等於 60 就寫 Pass，否則寫 Fail": {
+    "status": "ok",
+    "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "如果 A2 >= 60 就 Pass，唔係就 Fail": {
+    "status": "ok",
+    "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定 range 同 operation。 如果 A2 >= 60 就 Pass，唔係就 Fail": {
+    "status": "ok",
+    "formula": "=IF(A2>=60,\"Pass\",\"Fail\")",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "Return the day number for the date in A2 B2 C2": {
+    "status": "ok",
+    "formula": "=0",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "No, use the specified range and operation. Return the day number for the date in A2 B2 C2": {
+    "status": "ok",
+    "formula": "=DAY(DATE(A2,B2,C2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "用 A2 B2 C2 組成日期，再攞日數": {
+    "status": "ok",
+    "formula": "=DAY(DATE(A2,B2,C2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定範圍同運算。 用 A2 B2 C2 組成日期，再攞日數": {
+    "status": "ok",
+    "formula": "=DAY(DATE(A2,B2,C2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "用 A2 B2 C2 做 date，再攞 day": {
+    "status": "ok",
+    "formula": "=DAY(DATE(A2,B2,C2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定 range 同 operation。 用 A2 B2 C2 做 date，再攞 day": {
+    "status": "ok",
+    "formula": "=DAY(DATE(A2,B2,C2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "Trim A2 and make it uppercase": {
+    "status": "ok",
+    "formula": "=0",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "No, use the specified range and operation. Trim A2 and make it uppercase": {
+    "status": "ok",
+    "formula": "=UPPER(TRIM(A2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "刪走 A2 前後空格再轉大楷": {
+    "status": "ok",
+    "formula": "=UPPER(TRIM(A2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定範圍同運算。 刪走 A2 前後空格再轉大楷": {
+    "status": "ok",
+    "formula": "=UPPER(TRIM(A2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "幫我 trim A2 然後 uppercase": {
+    "status": "ok",
+    "formula": "=UPPER(TRIM(A2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  },
+  "唔啱，請用指定 range 同 operation。 幫我 trim A2 然後 uppercase": {
+    "status": "ok",
+    "formula": "=UPPER(TRIM(A2))",
+    "targetCell": "E2",
+    "references": ["A2"],
+    "functionsUsed": [],
+    "explanation": "Scripted fixture response; not a live model."
+  }
+}

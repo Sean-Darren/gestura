@@ -1,3 +1,4 @@
+import { tokenUsage } from '../index'
 import type { Provider, GenerateRequest, GenerateResponse } from '../index'
 
 export interface CloudProviderOptions {
@@ -34,6 +35,9 @@ export class CloudProvider implements Provider {
     try {
       const body = JSON.stringify({
         model: this.model,
+        ...(new URL(this.host).origin === 'https://openrouter.ai'
+          ? { provider: { require_parameters: true, data_collection: 'deny', zdr: true } }
+          : {}),
         messages: request.messages,
         response_format: {
           type: 'json_schema',
@@ -56,26 +60,28 @@ export class CloudProvider implements Provider {
       })
 
       if (!response.ok) {
-        throw new Error(
-          `Cloud provider returned ${response.status}: ${await response.text().catch(() => '')}`
-        )
+        throw new Error(`Cloud provider returned HTTP ${response.status}`)
       }
 
       const data = (await response.json()) as {
         choices: Array<{ message: { content: string } }>
+        usage?: { prompt_tokens?: unknown; completion_tokens?: unknown }
       }
       const content = data.choices?.[0]?.message?.content
       if (!content) throw new Error('Cloud provider returned empty response')
 
       const parsed = JSON.parse(content) as unknown
+      const usage = tokenUsage(data.usage?.prompt_tokens, data.usage?.completion_tokens)
       return {
         json: parsed,
         provider: 'cloud',
+        model: this.model,
+        ...(usage ? { usage } : {}),
         durationMs: this.perf.now() - start
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') throw err
-      throw err
+      throw new Error('Cloud provider request failed')
     }
   }
 }

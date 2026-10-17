@@ -123,7 +123,7 @@ docs/                     PROGRESS.md, open-questions.md, decisions/ (ADRs)
 | Voice intent benchmark (text CSV; audio optional)   | `pnpm bench:voice`                          |
 | Voice ASR WAV latency (local models required)       | `pnpm bench:voice:asr`                      |
 | Regenerate validated intent catalogue              | `pnpm intents:generate`                    |
-| Formula benchmark                                  | `pnpm bench:formula`                        |
+| Formula benchmark (JSON; mock/live; text/audio)      | `pnpm bench:formula`                        |
 
 If a command here does not exist yet, create it in the step that needs it and
 update this table.

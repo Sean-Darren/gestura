@@ -1,3 +1,4 @@
+import { tokenUsage } from '../index'
 import type { Provider, GenerateRequest, GenerateResponse } from '../index'
 
 export interface LocalProviderOptions {
@@ -52,14 +53,21 @@ export class LocalProvider implements Provider {
       )
     }
 
-    const data = (await response.json()) as { message?: { content?: string } }
+    const data = (await response.json()) as {
+      message?: { content?: string }
+      prompt_eval_count?: unknown
+      eval_count?: unknown
+    }
     const content = data.message?.content
     if (!content) throw new Error('Local provider returned empty response')
 
     const parsed = JSON.parse(content) as unknown
+    const usage = tokenUsage(data.prompt_eval_count, data.eval_count)
     return {
       json: parsed,
       provider: 'local',
+      model: this.model,
+      ...(usage ? { usage } : {}),
       durationMs: this.perf.now() - start
     }
   }

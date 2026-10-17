@@ -29,12 +29,16 @@ export function SpeechSettings(): JSX.Element {
     }
   }, [])
   const enabled = !['off', 'error'].includes(state.state)
+  const formulaVisible =
+    !!palette?.formula?.bounds && !['idle', 'cancelled'].includes(palette.formula.phase)
   return (
     <section
       className="speech-settings"
       aria-labelledby="speech-heading"
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && palette?.open)
+        if (event.key === 'Escape' && formulaVisible)
+          window.gestura.send('palette:control', { operation: 'activate', id: 'formula:cancel' })
+        else if (event.key === 'Escape' && palette?.open)
           window.gestura.send('palette:control', { operation: 'activate', id: 'palette' })
       }}
     >
@@ -77,9 +81,9 @@ export function SpeechSettings(): JSX.Element {
           <p role="status">{palette.message}</p>
         </div>
       )}
-      {palette?.open && (
+      {(palette?.open || formulaVisible) && palette && (
         <section aria-label="Keyboard-accessible phrase palette" className="palette-control-copy">
-          <h3>Phrase palette controls</h3>
+          <h3>{formulaVisible ? 'Formula review controls' : 'Phrase palette controls'}</h3>
           <p>
             For insertion into another app, focus that app and use the overlay. These controls also
             support keyboard navigation.

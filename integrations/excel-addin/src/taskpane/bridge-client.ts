@@ -1,10 +1,15 @@
 import { ExcelCommandSchema, EXCEL_WS_PATH } from '@gestura/core'
-import type { ExcelCommand, ExcelContext, ExcelEvent } from '@gestura/core'
+import type { ExcelCommand, ExcelContext, ExcelEvent, ExcelSnapshot } from '@gestura/core'
 
 export interface ExcelOfficeApi {
   getContext(includeSamples: boolean): Promise<ExcelContext>
   writeFormula(formula: string, target: string): Promise<void>
-  selectRange(address: string): Promise<void>
+  selectRange(address: string, sheetId?: string): Promise<void>
+  prepareCell?(sheetId: string, target: string): Promise<ExcelSnapshot>
+  commitFormula?(snapshot: ExcelSnapshot, formula: string): Promise<void>
+  restoreCell?(snapshot: ExcelSnapshot, expectedFormula: string): Promise<void>
+  resetSession?(): void
+  readonly sessionId?: string
 }
 
 export interface BridgeClientOptions {
@@ -28,6 +33,7 @@ export class BridgeClient {
   private retry = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
+  private readonly mutations = new Map<string, Promise<ExcelEvent>>()
 
   constructor(private readonly options: BridgeClientOptions) {}
 
@@ -47,14 +53,20 @@ export class BridgeClient {
   }
 
   private open(): void {
+    this.options.office.resetSession?.()
+    this.mutations.clear()
     const Ctor = this.resolveWebSocket()
     const socket = new Ctor(this.url())
     this.socket = socket
     socket.onopen = () => {
       this.retry = 0
     }
-    socket.onmessage = (event) => this.handleMessage(event)
-    socket.onclose = () => this.scheduleReconnect()
+    socket.onmessage = (event) => {
+      if (this.socket === socket) this.handleMessage(event)
+    }
+    socket.onclose = () => {
+      if (this.socket === socket) this.scheduleReconnect()
+    }
     socket.onerror = () => {
       // onclose follows and drives the reconnect decision.
     }
@@ -73,25 +85,64 @@ export class BridgeClient {
   }
 
   private async dispatch(command: ExcelCommand): Promise<void> {
+    const socket = this.socket
+    const mutating = ['writeFormula', 'commitFormula', 'restoreCell'].includes(command.type)
+    const previous = this.mutations.get(command.id)
+    if (previous) {
+      const event = await previous
+      if (this.socket === socket) this.send(event)
+      return
+    }
+    if (mutating && this.mutations.size >= 1000) {
+      this.socket?.close()
+      return
+    }
+    const operation = this.execute(command)
+    if (mutating) {
+      this.mutations.set(command.id, operation)
+    }
+    const event = await operation
+    if (this.socket === socket) this.send(event)
+  }
+  private async execute(command: ExcelCommand): Promise<ExcelEvent> {
     try {
       let event: ExcelEvent
       if (command.type === 'getContext') {
         const context = await this.options.office.getContext(command.includeSamples)
         event = { type: 'context', id: command.id, context }
+      } else if (command.type === 'prepareCell') {
+        if (command.sessionId !== this.options.office.sessionId || !this.options.office.prepareCell)
+          throw Error('Excel session changed')
+        event = {
+          type: 'prepared',
+          id: command.id,
+          snapshot: await this.options.office.prepareCell(command.sheetId, command.target)
+        }
+      } else if (command.type === 'commitFormula') {
+        if (!this.options.office.commitFormula) throw Error('Update the Gestura add-in')
+        await this.options.office.commitFormula(command.snapshot, command.formula)
+        event = { type: 'done', id: command.id }
+      } else if (command.type === 'restoreCell') {
+        if (!this.options.office.restoreCell) throw Error('Update the Gestura add-in')
+        await this.options.office.restoreCell(command.snapshot, command.expectedFormula)
+        event = { type: 'done', id: command.id }
       } else if (command.type === 'writeFormula') {
         await this.options.office.writeFormula(command.formula, command.target)
         event = { type: 'done', id: command.id }
       } else {
-        await this.options.office.selectRange(command.address)
+        if (command.sessionId && command.sessionId !== this.options.office.sessionId)
+          throw Error('Excel session changed')
+        if (command.sheetId) await this.options.office.selectRange(command.address, command.sheetId)
+        else await this.options.office.selectRange(command.address)
         event = { type: 'done', id: command.id }
       }
-      this.send(event)
+      return event
     } catch (error) {
-      this.send({
+      return {
         type: 'error',
         id: command.id,
         message: String(error).slice(0, 500)
-      })
+      }
     }
   }
 
@@ -112,5 +163,6 @@ export class BridgeClient {
     this.stopped = true
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.socket?.close()
+    this.options.office.resetSession?.()
   }
 }

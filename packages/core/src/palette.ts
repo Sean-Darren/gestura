@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { IntentIdSchema } from './intent'
+import { FormulaLoopStateSchema } from './formula-loop'
 
 export const DraftTextSchema = z
   .string()
@@ -79,6 +80,7 @@ export const PaletteStateSchema = z
     paused: z.boolean(),
     dictating: z.boolean(),
     busy: z.boolean(),
+    formula: FormulaLoopStateSchema.nullable().default(null),
     page: z.number().int().nonnegative(),
     pages: z.number().int().positive(),
     reviewPage: z.number().int().nonnegative(),

@@ -8,10 +8,12 @@
   },
   "dependencies": {
     "@gestura/core": "workspace:*",
-    "@gestura/genai": "workspace:*"
+    "@gestura/genai": "workspace:*",
+    "hyperformula": "3.5.0"
   },
   "devDependencies": {
     "csv-parse": "^6.2.1",
+    "esbuild": "^0.25.12",
     "tsx": "^4.23.15"
   }
 }

@@ -1,4 +1,5 @@
 import { FormulaResponseSchema } from '../index'
+import { FORMULA_OUTPUT_JSON_SCHEMA } from './output-schema'
 import type { FormulaRequest, FormulaResponse, Provider, GenerateRequest, Message } from '../index'
 import { validateFormula } from '../index'
 const PROMPT = `You are a spreadsheet formula assistant. Output valid JSON matching the schema.
@@ -11,7 +12,7 @@ Respond in the user's language.`
 
 export interface FormulaRouterOptions {
   cloud: Provider
-  local: Provider
+  local?: Provider
   timeoutMs?: number
   maxRetries?: number
   maxHistory?: number
@@ -24,7 +25,7 @@ export interface FormulaRouterOptions {
  */
 export class FormulaRouter {
   private readonly cloud: Provider
-  private readonly local: Provider
+  private readonly local: Provider | undefined
   private readonly timeoutMs: number
   private readonly maxRetries: number
   private readonly maxHistory: number
@@ -39,17 +40,21 @@ export class FormulaRouter {
     this.perf = options.performance ?? globalThis.performance
   }
 
-  async generate(request: FormulaRequest): Promise<FormulaResponse> {
-    const prompt = this.buildPrompt(request)
+  async generate(request: FormulaRequest, signal?: AbortSignal): Promise<FormulaResponse> {
+    signal?.throwIfAborted()
+    const prompt =
+      this.buildPrompt(request) +
+      `\nResponse language: ${request.lang === 'en' ? 'English' : 'Traditional Chinese (Hong Kong); preserve Cantonese wording'}.`
     const history = request.history.slice(-this.maxHistory)
 
     // Try cloud first
     try {
-      return await this.tryGenerate(this.cloud, prompt, history, request.utterance)
+      return await this.tryGenerate(this.cloud, prompt, history, request.utterance, signal)
     } catch {
+      signal?.throwIfAborted()
       // Cloud failed — only fall back for single-function requests (Q16)
       const isSingleFunctionRequest = this.looksLikeSingleFunction(request.utterance)
-      if (!isSingleFunctionRequest) {
+      if (!isSingleFunctionRequest || !this.local) {
         return {
           status: 'unsupported',
           explanation:
@@ -57,8 +62,9 @@ export class FormulaRouter {
         }
       }
       try {
-        return await this.tryGenerate(this.local, prompt, history, request.utterance)
+        return await this.tryGenerate(this.local, prompt, history, request.utterance, signal)
       } catch {
+        signal?.throwIfAborted()
         return {
           status: 'unsupported',
           explanation:
@@ -72,9 +78,13 @@ export class FormulaRouter {
     provider: Provider,
     prompt: string,
     history: FormulaRequest['history'],
-    utterance: string
+    utterance: string,
+    signal?: AbortSignal
   ): Promise<FormulaResponse> {
     const controller = new AbortController()
+    const abort = (): void => controller.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) controller.abort()
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
 
     try {
@@ -95,7 +105,7 @@ export class FormulaRouter {
 
         const genRequest: GenerateRequest = {
           messages,
-          jsonSchema: FormulaResponseSchema,
+          jsonSchema: FORMULA_OUTPUT_JSON_SCHEMA,
           signal: controller.signal
         }
 
@@ -128,6 +138,7 @@ export class FormulaRouter {
       }
     } finally {
       clearTimeout(timeout)
+      signal?.removeEventListener('abort', abort)
     }
   }
 

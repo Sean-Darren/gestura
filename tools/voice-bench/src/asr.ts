@@ -7,8 +7,10 @@ import { readMonoWav } from './wav'
 import type { Transcript } from '@gestura/core'
 
 export async function transcribeFixture(
-  audio: string
+  audio: string,
+  signal?: AbortSignal
 ): Promise<{ text: string; tSpeechStart: number }> {
+  signal?.throwIfAborted()
   const root = await realpath(resolve(repoRoot, 'fixtures/audio'))
   const file = await realpath(resolve(root, audio))
   const local = relative(root, file)
@@ -36,9 +38,10 @@ export async function transcribeFixture(
   const origin = performance.timeOrigin + performance.now()
   try {
     for (let offset = 0; offset < samples.length + 16000; offset += 512) {
+      signal?.throwIfAborted()
       const tCapture = origin + offset / 16
       const wait = tCapture + 32 - (performance.timeOrigin + performance.now())
-      if (wait > 0) await delay(wait)
+      if (wait > 0) await delay(wait, undefined, { signal })
       const packet = new Float32Array(512)
       packet.set(samples.subarray(offset, offset + 512))
       engine.accept(packet, tCapture)

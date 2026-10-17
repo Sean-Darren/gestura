@@ -1,14 +1,21 @@
 import { z } from 'zod'
 import { CellRangeSchema } from './intent'
+export const ExcelSelectionSchema = z
+  .string()
+  .max(2000)
+  .refine((v) => {
+    const ranges = v.split(',')
+    return ranges.length <= 100 && ranges.every((r) => CellRangeSchema.safeParse(r).success)
+  }, 'Invalid selection ranges')
 
 /**
  * Excel bridge message contracts (P4.1). These schemas are pure and shared:
  * `apps/desktop` main validates inbound events and the add-in (in
  * `integrations/excel-addin`) validates inbound commands with the same types.
  *
- * Only `writeFormula` and `selectRange` carry data that is inserted into the
- * workbook. `writeFormula` content is minted by ActionGate as a `ConfirmedAction`
- * before it ever reaches this module; see `apps/desktop/src/main/excel-bridge`.
+ * Main accepts only ActionGate confirmations for formula commits and restores.
+ * prepareCell captures local content; selectRange changes selection without writing.
+ * See `apps/desktop/src/main/excel-bridge` for the capability checks.
  */
 
 /** Coarse per-column data type, inferred from non-empty sample values. */
@@ -40,9 +47,37 @@ export const ExcelSampleSchema = z
   .strict()
 export type ExcelSample = z.infer<typeof ExcelSampleSchema>
 
+export const ExcelCellSchema = CellRangeSchema.refine((v) => !v.includes(':'), 'One cell required')
+export const ExcelCellContentSchema = z
+  .object({
+    formula: z.string().max(16000).nullable(),
+    value: z.union([z.string().max(32767), z.number().finite(), z.boolean(), z.null()])
+  })
+  .strict()
+export const ExcelSnapshotSchema = z
+  .object({
+    token: z.string().uuid(),
+    sessionId: z.string().uuid(),
+    sheetId: z.string().min(1).max(255),
+    target: ExcelCellSchema,
+    before: ExcelCellContentSchema
+  })
+  .strict()
+export type ExcelSnapshot = z.infer<typeof ExcelSnapshotSchema>
+export const RestoreCellActionSchema = z
+  .object({
+    kind: z.literal('excel-restore'),
+    content: z
+      .object({ snapshot: ExcelSnapshotSchema, expectedFormula: z.string().min(1).max(16000) })
+      .strict()
+  })
+  .strict()
+
 export const ExcelContextSchema = z
   .object({
     sheetName: z.string().max(255),
+    sessionId: z.string().uuid().optional(),
+    sheetId: z.string().min(1).max(255).optional(),
     selectionAddress: CellRangeSchema,
     activeCell: CellRangeSchema,
     headers: z.array(z.string().max(1024)).max(16384),
@@ -64,7 +99,8 @@ export const FormulaActionSchema = z
           .min(1)
           .max(16000)
           .refine((value) => !!value.trim()),
-        target: CellRangeSchema
+        target: CellRangeSchema,
+        snapshot: ExcelSnapshotSchema.optional()
       })
       .strict()
   })
@@ -73,6 +109,31 @@ export type FormulaAction = z.infer<typeof FormulaActionSchema>
 
 /** Server → add-in commands. The add-in is the only process with Office.js access. */
 export const ExcelCommandSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('prepareCell'),
+      id: z.string().uuid(),
+      target: ExcelCellSchema,
+      sheetId: z.string().min(1).max(255),
+      sessionId: z.string().uuid()
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('commitFormula'),
+      id: z.string().uuid(),
+      formula: z.string().min(1).max(16000),
+      snapshot: ExcelSnapshotSchema
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('restoreCell'),
+      id: z.string().uuid(),
+      snapshot: ExcelSnapshotSchema,
+      expectedFormula: z.string().min(1).max(16000)
+    })
+    .strict(),
   z
     .object({
       type: z.literal('getContext'),
@@ -96,7 +157,9 @@ export const ExcelCommandSchema = z.discriminatedUnion('type', [
     .object({
       type: z.literal('selectRange'),
       id: z.string().uuid(),
-      address: CellRangeSchema
+      address: ExcelSelectionSchema,
+      sheetId: z.string().min(1).max(255).optional(),
+      sessionId: z.string().uuid().optional()
     })
     .strict()
 ])
@@ -104,6 +167,9 @@ export type ExcelCommand = z.infer<typeof ExcelCommandSchema>
 
 /** Add-in → server events. */
 export const ExcelEventSchema = z.discriminatedUnion('type', [
+  z
+    .object({ type: z.literal('prepared'), id: z.string().uuid(), snapshot: ExcelSnapshotSchema })
+    .strict(),
   z.object({ type: z.literal('ready') }).strict(),
   z
     .object({ type: z.literal('context'), id: z.string().uuid(), context: ExcelContextSchema })

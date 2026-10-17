@@ -1,0 +1,251 @@
+[
+  {
+    "id": "aggregation-en",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Amount"], [10], [20], [30]],
+      "targetCell": "E2"
+    },
+    "utterance": "Add the amounts in A2 to A4",
+    "lang": "en",
+    "category": "aggregation",
+    "correctionUtterance": "No, use the specified range and operation. Add the amounts in A2 to A4",
+    "expected": {
+      "value": 60
+    }
+  },
+  {
+    "id": "aggregation-yue",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Amount"], [10], [20], [30]],
+      "targetCell": "E2"
+    },
+    "utterance": "將 A2 至 A4 嘅金額加埋",
+    "lang": "yue",
+    "category": "aggregation",
+    "correctionUtterance": "唔啱，請用指定範圍同運算。 將 A2 至 A4 嘅金額加埋",
+    "expected": {
+      "value": 60
+    }
+  },
+  {
+    "id": "aggregation-mixed",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Amount"], [10], [20], [30]],
+      "targetCell": "E2"
+    },
+    "utterance": "幫我 sum A2 到 A4",
+    "lang": "mixed",
+    "category": "aggregation",
+    "correctionUtterance": "唔啱，請用指定 range 同 operation。 幫我 sum A2 到 A4",
+    "expected": {
+      "acceptedFormulas": ["=SUM(A2:A4)"]
+    }
+  },
+  {
+    "id": "lookup-en",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Name", "Amount"],
+        ["Ada", 12],
+        ["Bo", 25],
+        ["Cy", 40]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "Look up the amount for Bo",
+    "lang": "en",
+    "category": "lookup",
+    "correctionUtterance": "No, use the specified range and operation. Look up the amount for Bo",
+    "expected": {
+      "value": 25
+    }
+  },
+  {
+    "id": "lookup-yue",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Name", "Amount"],
+        ["Ada", 12],
+        ["Bo", 25],
+        ["Cy", 40]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "搵 Bo 嘅金額",
+    "lang": "yue",
+    "category": "lookup",
+    "correctionUtterance": "唔啱，請用指定範圍同運算。 搵 Bo 嘅金額",
+    "expected": {
+      "value": 25
+    }
+  },
+  {
+    "id": "lookup-mixed",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Name", "Amount"],
+        ["Ada", 12],
+        ["Bo", 25],
+        ["Cy", 40]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "幫我 lookup Bo 嘅 amount",
+    "lang": "mixed",
+    "category": "lookup",
+    "correctionUtterance": "唔啱，請用指定 range 同 operation。 幫我 lookup Bo 嘅 amount",
+    "expected": {
+      "acceptedFormulas": ["=VLOOKUP(\"Bo\",A2:B4,2,FALSE)"]
+    }
+  },
+  {
+    "id": "logical-en",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Score"], [80]],
+      "targetCell": "E2"
+    },
+    "utterance": "Return Pass if A2 is at least 60, otherwise Fail",
+    "lang": "en",
+    "category": "logical",
+    "correctionUtterance": "No, use the specified range and operation. Return Pass if A2 is at least 60, otherwise Fail",
+    "expected": {
+      "value": "Pass"
+    }
+  },
+  {
+    "id": "logical-yue",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Score"], [80]],
+      "targetCell": "E2"
+    },
+    "utterance": "A2 大過或等於 60 就寫 Pass，否則寫 Fail",
+    "lang": "yue",
+    "category": "logical",
+    "correctionUtterance": "唔啱，請用指定範圍同運算。 A2 大過或等於 60 就寫 Pass，否則寫 Fail",
+    "expected": {
+      "value": "Pass"
+    }
+  },
+  {
+    "id": "logical-mixed",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Score"], [80]],
+      "targetCell": "E2"
+    },
+    "utterance": "如果 A2 >= 60 就 Pass，唔係就 Fail",
+    "lang": "mixed",
+    "category": "logical",
+    "correctionUtterance": "唔啱，請用指定 range 同 operation。 如果 A2 >= 60 就 Pass，唔係就 Fail",
+    "expected": {
+      "acceptedFormulas": ["=IF(A2>=60,\"Pass\",\"Fail\")"]
+    }
+  },
+  {
+    "id": "date-en",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Year", "Month", "Day"],
+        [2024, 2, 29]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "Return the day number for the date in A2 B2 C2",
+    "lang": "en",
+    "category": "date",
+    "correctionUtterance": "No, use the specified range and operation. Return the day number for the date in A2 B2 C2",
+    "expected": {
+      "value": 29
+    }
+  },
+  {
+    "id": "date-yue",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Year", "Month", "Day"],
+        [2024, 2, 29]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "用 A2 B2 C2 組成日期，再攞日數",
+    "lang": "yue",
+    "category": "date",
+    "correctionUtterance": "唔啱，請用指定範圍同運算。 用 A2 B2 C2 組成日期，再攞日數",
+    "expected": {
+      "value": 29
+    }
+  },
+  {
+    "id": "date-mixed",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [
+        ["Year", "Month", "Day"],
+        [2024, 2, 29]
+      ],
+      "targetCell": "E2"
+    },
+    "utterance": "用 A2 B2 C2 做 date，再攞 day",
+    "lang": "mixed",
+    "category": "date",
+    "correctionUtterance": "唔啱，請用指定 range 同 operation。 用 A2 B2 C2 做 date，再攞 day",
+    "expected": {
+      "acceptedFormulas": ["=DAY(DATE(A2,B2,C2))"]
+    }
+  },
+  {
+    "id": "text-en",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Name"], ["  hello world  "]],
+      "targetCell": "E2"
+    },
+    "utterance": "Trim A2 and make it uppercase",
+    "lang": "en",
+    "category": "text",
+    "correctionUtterance": "No, use the specified range and operation. Trim A2 and make it uppercase",
+    "expected": {
+      "value": "HELLO WORLD"
+    }
+  },
+  {
+    "id": "text-yue",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Name"], ["  hello world  "]],
+      "targetCell": "E2"
+    },
+    "utterance": "刪走 A2 前後空格再轉大楷",
+    "lang": "yue",
+    "category": "text",
+    "correctionUtterance": "唔啱，請用指定範圍同運算。 刪走 A2 前後空格再轉大楷",
+    "expected": {
+      "value": "HELLO WORLD"
+    }
+  },
+  {
+    "id": "text-mixed",
+    "sheet": {
+      "name": "Sheet1",
+      "grid": [["Name"], ["  hello world  "]],
+      "targetCell": "E2"
+    },
+    "utterance": "幫我 trim A2 然後 uppercase",
+    "lang": "mixed",
+    "category": "text",
+    "correctionUtterance": "唔啱，請用指定 range 同 operation。 幫我 trim A2 然後 uppercase",
+    "expected": {
+      "acceptedFormulas": ["=UPPER(TRIM(A2))"]
+    }
+  }
+]

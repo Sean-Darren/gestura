@@ -1088,3 +1088,155 @@ Changed files (P4.2 manifest)
 - docs/PROGRESS.md
 
 Changes left uncommitted for human review, commit and push. docs remains gitignored under the human's existing preference; include it deliberately when committing.
+
+## P4.3 — Formula proposal, confirmation and correction loop
+
+Date: 2026-10-17.
+
+Changed
+- Added a dedicated formula state machine: thinking/clarification/proposal/correction/write/receipt/undo/error. Generation runs outside the input queue; Cancel/pause immediately invalidate proposals and late results. Corrections send bounded request/formula/correction history and revoke the old ActionGate ID before generation.
+- Added a display-clamped overlay card near a matching cached Excel cell (fallback when AX/UIA cannot identify the cell), large local monospace formula text, paged explanation in the requested language, referenced-column selectRange, correction count and one-second mouth countdown.
+- Confirmation waits for the final review page to paint and records presentation time in main. Trusted ASR onset must follow presentation; a fresh silent mouth hold is required otherwise. Blink/wink clicks on the card are consumed. Dwell can review/correct/cancel/stage undo, never confirm. Existing green style and keyboard-accessible control mirror retained.
+- Added connection-local destination snapshots. Exactly one add-in must be connected. Session, worksheet, cell, content and age are checked; duplicate confirmations/commands/snapshots cannot write twice. A changed foreground window, reconnect or edited cell fails closed. Ambiguous outcomes never trigger automatic retries.
+- Added in-memory restore of original formulas or primitive values, including literal text beginning with '='. Restore gets a separate fresh ActionGate action and refuses to overwrite a later cell edit. Original values never enter provider context or logs. Q15 sample sharing remains opt-in.
+- Updated the actual Excel bridge ADR (0012; 0005 is the pointer ADR) to distinguish documented undo support from unmeasured desktop behavior. Native Ctrl+Z remains unverified, so this step uses guarded snapshot restore. Added ADR0013 and a UI delivery check.
+- Bundled @gestura/genai into Electron main because its workspace export points at TypeScript. Added no dependencies, scripts, workflow or runtime network routes. AGENTS.md Hard rules and Commands table unchanged.
+
+Measured checks
+- pnpm verify: PASS (lint with zero warnings, all workspace typechecks, 88 test files passed / 426 tests passed; 1 file and 6 tests retain existing skips). Vitest duration 3.34 s on this macOS host.
+- Desktop Electron production build: PASS. Excel add-in production build: PASS.
+- Focused formula/input/router tests: 21 passed in 3 files.
+- Tests cover stale proposals, pre-presentation voice, blink/wink/dwell rejection, correction history/invalidation, simultaneous confirmation, pause during generation, ignored late results, changed foreground, unavailable destination, thrown/ambiguous write failures, separate confirmed restore, gaze Undo staging, talking suppression, snapshot tampering/expiry/session changes, intervening edits, duplicate transport commands, multiple clients and reconnect revisions.
+- Fake Office tests exercise explicit String restore for '=literal', worksheet change refusal, ExcelApi 1.16 availability and discontiguous selection's 1.18 guard. No real workbook was changed.
+- Scripted UI inspection: observed widths 375 and 1163 CSS px; no horizontal overflow; card body scrollHeight/clientHeight both 288 px. New review controls are nominally 64 px high. Next shows Cantonese explanation, Back returns to formula, Correct opens composer and submitting produces correction 1, Cancel removes the card. See p4.3-ui-check.md for the scoped PASS report.
+- Text/background contrast 15.19:1; green/background contrast 7.81:1. Screenshots in /tmp/gestura-p43-{formula,explanation,desktop}.png are temporary scripted evidence.
+- git diff --check: PASS. Changes remain uncommitted.
+
+Defaults used
+- Q4: spoken confirm/確認 or one-second held mouth; no blink/wink/dwell confirmation.
+- Q6: primary display only, DPI-aware conversion for cached target bounds.
+- Q12: Traditional Hong Kong Chinese explanations for Cantonese/mixed requests.
+- Q13: Office.js bridge. Q15: no sample values without opt-in.
+
+Known issues / follow-ups
+- Real desktop Excel (macOS/Windows), actual ASR, camera gestures, remote/local providers and Windows runtime were not exercised. No formula correctness or end-to-end latency claim follows from these tests.
+- Native Ctrl+Z support remains unmeasured. Snapshot restore requires ExcelApi 1.16, supports formulas/primitive values and rejects rich/error values before proposal. Separate-column selection requires 1.18; failure is disclosed without writing.
+- Snapshot checks are optimistic: a coauthor can edit between Office read and write sync. No cross-client atomic compare-and-swap is claimed. Once Office has received a mutation it cannot be recalled; pause cancels subsequent sends and invalidates outstanding results.
+- Undo is in memory and limited to the recent acknowledged formula write. It expires after 60 s and is cleared on reconnect/cancel/new request. Review the receipt's previous content before voice Undo; the gaze Undo tile stages a fresh confirmation card.
+- Cell anchoring requires a fresh cached spreadsheet-cell candidate named with the target address. Otherwise the card uses a screen-clamped fallback; inspect AX/UIA coverage on each host.
+
+Manual checks for the human (both macOS and Windows)
+- [ ] Start Gestura with the Excel add-in connected exactly once and configured allowlisted formula provider. Select a disposable cell in a test workbook; keep Excel foreground.
+- [ ] Request a formula: verify thinking, readable complete formula/explanation review pages, card placement, column selection and no workbook write before confirmation.
+- [ ] Blink/wink/dwell on the card: verify no insertion. Review all pages, then speak confirm/確認 or hold the mouth open silently for 1 s; verify countdown and exactly one insertion.
+- [ ] Say 'no, use column C' while a proposal is pending; verify correction 1, old proposal revoked and fresh review/confirmation required. Repeat with the gaze Correct composer.
+- [ ] Cancel by voice and dwell while thinking/proposed. Pause via hotkey and corner dwell in every state; verify no later result reopens a cancelled card or sends a new write. Resume explicitly.
+- [ ] Review receipt/previous content, say 'undo that', verify exact original formula/value/blank restoration. Repeat using gaze Undo plus mouth confirmation, including literal '=text'. Edit the cell manually before Undo and confirm restore refuses to overwrite it.
+- [ ] Change worksheet/workbook/window, reconnect add-in, connect a second add-in, wait over 60 s: verify confirmations fail closed. Inspect Excel after any ambiguous timeout; do not assume no mutation occurred.
+- [ ] Record actual desktop Ctrl+Z behavior in ADR0012 on both platforms. Check retina/Windows scaling, click-through focus retention, keyboard review mirror, and poor AX/UIA coverage fallback.
+
+Changed files (P4.3 manifest)
+- apps/desktop/electron.vite.config.ts
+- apps/desktop/src/main/index.ts
+- apps/desktop/src/main/formula/controller.ts; controller.test.ts
+- apps/desktop/src/main/input/controller.ts; formula.test.ts
+- apps/desktop/src/main/excel-bridge/bridge.ts; server.ts; transactions.test.ts
+- apps/desktop/src/renderer/control/SpeechSettings.tsx
+- apps/desktop/src/renderer/overlay/FormulaCard.tsx; PhrasePalette.tsx
+- apps/desktop/src/renderer/shared/styles.css
+- packages/core/src/excel.ts; formula-loop.ts; formula-loop.test.ts; palette.ts; index.ts
+- packages/genai/src/formula/router.ts; router.test.ts
+- integrations/excel-addin/src/taskpane/bridge-client.ts; bridge-client.test.ts; cell-transactions.ts; cell-transactions.test.ts; office.ts; office.test.ts
+- docs/decisions/0012-excel-bridge.md; 0013-formula-confirmation-loop.md
+- docs/p4.3-ui-check.md; docs/PROGRESS.md
+
+Suggested commit message
+feat(P4.3): add confirmed formula correction and guarded Excel restore
+
+## P4.4 — Value-based formula benchmark
+
+Date: 2026-10-17.
+
+Changed
+- Replaced the default CSV/self-grading harness with strict JSON cases and a fresh-sheet value evaluator. Cases contain fixture grids, language, optional correction utterance, scalar expected value or accepted formulas, and author-supplied function category. Raw grids default to Sheet1/output AZ1; explicit name/grid/target objects are supported. Oracles are preflighted before any provider request and never enter generator inputs.
+- Added pinned HyperFormula 3.5.0 under the approved GPLv3 licence; commercial licensing remains a separate option. It is imported only by the benchmark tool. Added the repo's existing esbuild 0.25 line as a tool dev dependency for an isolated Electron main runner. Documented licence/compatibility limits in ADR0014 and tool README.
+- Independent mock response JSON deliberately includes five wrong first responses. One correction uses request/previous formula/correction history, with all failed cases remaining in cumulative accuracy denominators. Equivalent formula spellings are scored by value, with explicit numeric tolerance. Wrong target, unsupported function, timeout and evaluator failures do not silently disappear.
+- Reports include overall/language/category accuracy, generation p50/p95, correction p50/p95, cumulative automated end-to-end latency, token calls and estimated USD/request. Missing usage/rates or potentially billed failed calls yields N/A. Mock costs are zero. Expected answers, full grids, API keys and raw HTTP/provider errors are not sent to generators or persisted as diagnostic errors.
+- Optional live mode runs only in Electron main with explicit exact-host/port allowlisting, redirect refusal, session block policy and enabled-only local fallback. Provider clients preserve optional token/model metadata. Fixed structured-output requests to send plain JSON Schema rather than serializing Zod internals; Zod still validates responses.
+- Optional audio mode reuses local fixture ASR with cancellable playback; capture/export code was not added. Team recordings still require consent manifests. Reports are timestamped JSON/Markdown under docs/benchmarks; running the command is the opt-in, and files can be deleted using Finder/Explorer.
+- Updated the existing root command and AGENTS Commands description. Hard rules remain byte-for-byte unchanged. Legacy P4.2 CSV parsing tests remain, but it no longer supplies answers to the scorer.
+
+Measured checks
+- pnpm verify: lint zero warnings, workspace typechecks, 94 test files / 457 tests passed; 1 file and 6 existing tests skipped. Vitest duration 4.35 s on this macOS host.
+- Electron desktop production build passed. The separate benchmark Electron bundle also builds and runs without the optional ASR chunk being loaded in text mode.
+- Latest mock text run: 15 cases, 10/15 first try (66.7%), 15/15 cumulative after correction (100%), 20 generation requests. These are intentionally scripted harness results, NOT LLM accuracy. First generation p50/p95 0.09/1.38 ms; correction 0.10/0.28 ms; automated end-to-end 7.73/21.17 ms; zero provider charges. File: docs/benchmarks/formula-mock-text-2026-10-17T15-19-15-671Z.{json,md}.
+- Electron live-transport smoke: loopback stub only, model label scripted-transport-smoke-NOT-LLM; 20 requests, 10/15 first, 15/15 corrected. First generation p50/p95 1.82/41.02 ms; correction 2.03/2.93 ms; automated end-to-end 5.40/50.61 ms. Explicit zero test rates, no real LLM charges. File: docs/benchmarks/formula-live-text-2026-10-17T15-15-37-182Z.{json,md}.
+- Real local ASR adapter smoke with bundled sherpa/yue.wav reached evaluation successfully: 7,307.77 ms playback/ASR elapsed, 7,354.79 ms total. Generator returned a constant scripted '=1' solely to test transport. This does NOT measure speech-end latency, ASR correctness or audio formula quality. Temporary report: /tmp/gestura-p44-audio-smoke.json. No new audio was written.
+- Combined Electron audio transport smoke also passed: upstream Cantonese WAV -> production local ASR -> FormulaRouter -> one allowlisted local stub call -> evaluator. Constant '=1' response, not a formula-quality task. Generation 60.71 ms; automated playback/ASR/evaluation total 7,192.79 ms. Model label scripted-audio-transport-smoke-NOT-LLM; no charges. Report: docs/benchmarks/formula-live-audio-2026-10-17T15-23-46-257Z.{json,md}.
+- Tests cover JSON shape/limits/duplicates, equivalent formulas, all five categories, unsafe/unsupported/volatile/error results, strict numeric tolerance, oracle preflight, no expected-data leakage, correction history/denominators, missing audio, cancellation/timeouts, deterministic latency arithmetic, pricing/usage/model mismatch, retry token accounting, redirect/host/port policy, plain output schemas, report files and redacted provider errors.
+- Existing Electron 44.7.1 runtime was missing path.txt; repaired the declared installation using its cached archive to run the smoke test. No Electron version change or source/lock change for that repair.
+
+Defaults and limitations
+- Q12: en/yue/mixed case groups; Traditional HK response request retained. Q14: provider-agnostic cloud interface, no real provider chosen or contacted. Q15: headers/addresses/types only unless explicit --share-samples (up to 5 values/column); complete fixture grids stay local. Q16: enabled local fallback only. Q17 remains unmeasured for real LLM quality.
+- HyperFormula differs from Excel (notably date/array/name behavior); passing values on a single grid do not prove semantic equivalence or Excel compatibility. No arbitrary generated JavaScript runs. Fixture/engine dimensions are bounded, and volatile functions are rejected for reproducibility.
+- Price estimates use supplied model-matched rates/as-of date, excluding cache discounts/tax/machine energy. Unknown costs are not invented. Generation latency includes internal repair/fallback; audio end-to-end includes playback; human correction time is not measured.
+- Team formula recordings were not supplied. Only a published upstream ASR sample was used for transport smoke. Windows runtime and real provider billing/accuracy runs remain pending. Platform-neutral code uses the same library on both OSes; no new workflow was added.
+- Prior P4.3 changes were already present and remain uncommitted; they were preserved.
+
+Manual checks for the human
+- [ ] On macOS and Windows, run pnpm install, then pnpm bench:formula. Inspect the new JSON/Markdown pair and confirm all language/function groups and the explicit mock label.
+- [ ] Add independent team JSON cases with scalar values or accepted formulas; include adversarial grids for constants, missing/blank data, booleans, lookups, dates and text. Compare representative results in real Excel.
+- [ ] Configure a real provider and exact network allowlist, then run pnpm bench:formula --provider live --app-config /absolute/path/config.json --config /absolute/path/pricing.json. This makes potentially billable requests; supply actual model rates and check token accounting/unknown costs. Never interpret stub/mock reports as model quality.
+- [ ] Test a disallowed host/port and redirect: verify no provider request escapes. Keep --share-samples absent and inspect synthetic provider requests to confirm full fixture/oracle data is absent.
+- [ ] For audio formula quality, supply existing consented mono 16 kHz WAVs plus correction WAVs and matching case paths/manifest entries; run --mode audio (with live flags for real generation). Check missing audio remains a failure and Ctrl+C stops playback/requests. Do not record through this tool.
+- [ ] Remove an unwanted report pair using Finder/Explorer; confirm no uploads. Record real first/corrected accuracy before applying the Phase 5 gate.
+
+Changed files (P4.4 manifest)
+- AGENTS.md (Commands description only); package.json; pnpm-lock.yaml
+- packages/core/src/formula-bench.ts; formula-bench.test.ts; index.ts
+- packages/genai/src/index.ts; providers/cloud.ts; providers/local.ts; providers/usage.test.ts
+- packages/genai/src/formula/output-schema.ts; formula/router.ts
+- tools/formula-bench/package.json; tsconfig.json; README.md
+- tools/formula-bench/src/index.ts; index.test.ts; cases.ts; evaluator.ts; evaluate.ts; evaluate.test.ts
+- tools/formula-bench/src/generator.ts; generator.test.ts; cli.ts; cli.test.ts; launch.ts; electron.ts; network.ts; network.test.ts
+- tools/voice-bench/src/asr.ts (optional cancellation signal)
+- fixtures/formula-cases/p4.4-cases.json; p4.4-mock-responses.json
+- docs/benchmarks/README.md and timestamped mock/stub report pairs
+- docs/decisions/0014-formula-benchmark.md; docs/PROGRESS.md
+
+Suggested commit message
+feat(P4.4): evaluate formula fixtures and report correction accuracy
+
+## P4.4 follow-up — OpenRouter development connection
+
+Date: 2026-10-17.
+
+Changed
+- Added root .env.example and a gitignored local .env template (existing .env preserved). User-approved environment setup replaces the earlier proposed encrypted-key setup for development; no safeStorage claim is made. No dependencies, scripts, workflows or Hard rules changed.
+- Main reads root .env with Node parseEnv in development only; explicit shell settings take precedence. It does not export file secrets into process.env, and removes inherited OpenRouter variables before creating windows/utility workers. A non-empty key configures openai/gpt-4.1-mini at https://openrouter.ai/api and adds openrouter.ai to the in-memory allowlist. Nothing is written to user config or sent over IPC.
+- Added a guarded Electron net.fetch transport to desktop provider calls: exact host/port matching, no URL credentials, refused redirects. Disabled/unconfigured local fallback no longer creates a provider. Missing/empty environment key leaves existing settings unchanged.
+- Cloud requests to OpenRouter require structured-output-capable endpoints, data_collection deny and zdr true, per current official routing documentation. Sanitized errors exclude raw HTTP bodies and transport exceptions. Existing ActionGate and sample-sharing controls remain in force.
+- Environment fields have a shared core Zod schema. Validate only the new config fields because existing default local-model empty string is not round-trip-valid under the prior AppConfig schema. That existing schema/default inconsistency is a follow-up.
+
+Measured checks
+- pnpm verify PASS: lint zero warnings, all workspace typechecks, 97 test files / 467 tests passed; 1 file / 6 existing tests skipped. Vitest 5.75 s on this macOS host.
+- Desktop production build PASS (existing third-party Rollup annotation warnings only). git diff --check PASS. .env confirmed ignored by Git; local mode 0600.
+- New tests cover environment parsing/precedence, absence/empty key, secret removal, default model/allowlist, invalid settings with redacted errors, exact endpoint and JSON/privacy routing, request blocking/redirect refusal, sanitized provider failure and missing local fallback. All transport tests use fakes; no paid provider request made.
+
+Manual checks and limitations
+- User: paste the key locally into .env, quit the running instance, then pnpm dev (or pnpm excel:dev with the existing Excel add-in setup). Request an English/Cantonese formula in a disposable workbook, review/correct/cancel, and verify only explicit voice/mouth confirmation writes once. Test pause throughout.
+- Actual key, account credits, live model response/accuracy, privacy-compatible endpoint availability and Windows runtime remain unverified. Run the same setup on Windows. Starting the app does not itself generate a billable request.
+- .env is plaintext local development configuration. Packaged builds read only explicit environment variables. Encrypted production credential storage/UI is a follow-up. Benchmark live mode retains its explicit --app-config flow and does not read this .env.
+- Setup instructions: docs/openrouter-setup.md, including account troubleshooting and official provider docs. No new region assumption; Q15 sample values remain opt-in. Prior P4.3/P4.4 uncommitted changes preserved.
+
+Changed files (this follow-up)
+- .env.example; .env (ignored local file)
+- apps/desktop/src/main/config.ts; openrouter.test.ts; index.ts
+- apps/desktop/src/main/network/provider-fetch.ts; provider-fetch.test.ts
+- packages/core/src/config/index.ts
+- packages/genai/src/providers/cloud.ts; openrouter.test.ts
+- packages/genai/src/formula/router.ts; router.test.ts
+- docs/openrouter-setup.md; docs/PROGRESS.md
+
+Suggested commit message
+fix(P4.4): connect OpenRouter through private environment configuration

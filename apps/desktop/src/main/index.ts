@@ -18,6 +18,7 @@ import { CalibrationStore } from './calibration/store'
 import { PointerController } from './pointer/controller'
 import {
   app,
+  net,
   BrowserWindow,
   globalShortcut,
   ipcMain,
@@ -38,7 +39,8 @@ import { VisionController } from './vision/controller'
 import { saveRecording, loadRecording } from './vision/replay-files'
 import type { IpcSendPayloadFor, IpcPayloadFor } from '@gestura/core'
 import { createIpcEnvelope, parseIpcEnvelope } from '@gestura/core'
-import { loadAppConfig } from './config'
+import { loadAppConfig, loadOpenRouterEnvironment, withOpenRouter } from './config'
+import { allowlistedFetch, providerUrl } from './network/provider-fetch'
 import { installNetworkPolicy } from './network'
 import { createBlockedRequestLogger } from './network/local-log'
 import { pauseAccelerator } from './pause'
@@ -463,7 +465,10 @@ app.whenReady().then(async () => {
   // accessibility handler on the worker thread, crashing V8. Disable Chromium's
   // accessibility tree so our windows stay out of the AX hierarchy.
   app.setAccessibilitySupportEnabled(false)
-  const config = loadAppConfig(join(app.getPath('userData'), 'config.json'))
+  const config = withOpenRouter(
+    loadAppConfig(join(app.getPath('userData'), 'config.json')),
+    loadOpenRouterEnvironment(app.isPackaged ? undefined : join(__dirname, '../../../../.env'))
+  )
   const calibrationStore = new CalibrationStore(app.getPath('userData'))
   const calibrationProfile = await calibrationStore.load()
   installNetworkPolicies(config)
@@ -813,18 +818,28 @@ app.whenReady().then(async () => {
         })
     }
   }
+  const providerFetch = allowlistedFetch(
+    (url, init) => net.fetch(url, init),
+    config.network.allowlist
+  )
   let formulaRouter: FormulaRouter | undefined
   if (config.genai.cloudProvider) {
     formulaRouter = new FormulaRouter({
       cloud: new CloudProvider({
-        host: config.genai.cloudProvider.host,
+        host: providerUrl(config.genai.cloudProvider.host, false),
         apiKey: config.genai.cloudProvider.apiKey,
-        model: config.genai.cloudProvider.model
+        model: config.genai.cloudProvider.model,
+        fetch: providerFetch
       }),
-      local: new LocalProvider({
-        host: config.genai.localProvider.host,
-        model: config.genai.localProvider.model
-      }),
+      ...(config.genai.localProvider.enabled && config.genai.localProvider.model
+        ? {
+            local: new LocalProvider({
+              host: providerUrl(config.genai.localProvider.host, true),
+              model: config.genai.localProvider.model,
+              fetch: providerFetch
+            })
+          }
+        : {}),
       timeoutMs: config.genai.formula.timeoutMs,
       maxRetries: config.genai.formula.maxRetries,
       maxHistory: config.genai.formula.maxHistory
@@ -851,6 +866,25 @@ app.whenReady().then(async () => {
     save: (settings) => paletteStore.save(settings),
     ...(excelBridgeHandle ? { excelBridge: excelBridgeHandle.bridge } : {}),
     ...(formulaRouter ? { formulaRouter } : {}),
+    formulaAnchor: (target) => {
+      const cache = nativeUi.getCachedElements()
+      if (!cache || !/excel/i.test(cache.foreground.appId)) return undefined
+      const element = cache.elements.find((e) => e.role === 'spreadsheet-cell' && e.name === target)
+      if (!element) return undefined
+      try {
+        const display = nativeInput.getDisplays()?.find((d) => d.primary)
+        if (!display) return undefined
+        const scale = display.coordinateSpace === 'points' ? 1 : display.scaleFactor
+        return {
+          x: element.bounds.x / scale,
+          y: element.bounds.y / scale,
+          width: element.bounds.width / scale,
+          height: element.bounds.height / scale
+        }
+      } catch {
+        return undefined
+      }
+    },
     shareSamples: config.excel.shareSampleValues
   })
   if (!globalShortcut.register(LISTENING_HOTKEY, () => inputController?.toggleListening()))
