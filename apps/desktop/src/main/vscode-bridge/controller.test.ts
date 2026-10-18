@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CodeController } from './controller'
 import { ActionGate } from '../action-gate'
 import { PauseController } from '../pause'
+import { CloudProviderError } from '@gestura/genai'
 import type { CodeBridge } from './bridge'
 import type { ConfirmationEvidence, CodeResponse, CodeSnapshot } from '@gestura/core'
 const response: CodeResponse = {
@@ -85,6 +86,15 @@ describe('code proposal confirmation loop', () => {
       s.controller.confirm({ kind: 'held-mouth-gesture' })
     ])
     expect(s.write).toHaveBeenCalledOnce()
+  })
+  it('shows a safe provider diagnostic when generation fails', async () => {
+    const s = setup()
+    s.generate.mockRejectedValueOnce(new CloudProviderError('authentication'))
+    s.controller.start('rewrite this function')
+    await s.controller.settle()
+    expect(s.controller.state.explanation).toContain('Code proposal unavailable')
+    expect(s.controller.state.explanation).toContain('API key')
+    expect(s.controller.state.explanation).not.toContain('secret')
   })
   it('expires stale proposals', async () => {
     const s = setup()

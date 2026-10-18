@@ -1393,6 +1393,36 @@ Changed files
 - apps/desktop/src/main/display-policy.ts; display-policy.test.ts; index.ts
 - apps/desktop/src/main/calibration/controller.ts; controller.test.ts
 - apps/desktop/src/main/vision/controller.ts; controller.test.ts
+
+## 2026-10-18 — Windows office workflow setup baseline
+
+Status: partial
+Platforms checked: Windows build/runtime startup partial; macOS not checked
+
+What changed
+- Updated root workspace scripts to invoke the pinned pnpm through Corepack, so nested development and integration commands work when pnpm is not globally installed.
+- Expanded the README with Windows prerequisites and daily VS Code/Excel startup steps.
+- Fetched and verified local face-tracking and speech assets.
+
+Measured checks
+- `corepack pnpm dev`: Electron startup and renderer server passed at `http://localhost:5173`.
+- `corepack pnpm vscode:build`: passed.
+- `corepack pnpm excel:build`: passed.
+- VS Code, Excel, and desktop bridge tests: 12 files / 50 tests passed.
+- Desktop production build: passed.
+
+Known issues / follow-ups
+- `corepack pnpm native:build` is blocked because Rust `cargo` is not installed on this Windows machine. Install Rustup with the MSVC toolchain and the Visual Studio Desktop development with C++ workload, then rerun the build.
+- Full `corepack pnpm verify` is blocked by 27,192 repository-wide CRLF/Prettier warnings on this checkout; the separate test run also has an existing Windows voice-bench CLI timeout.
+- Real Excel sideloading, trusted localhost certificate behavior, camera/microphone permissions, and Windows native runtime behavior remain manual checks.
+
+Manual checks for the human
+- [ ] Install Rustup/MSVC build tools and rerun `corepack pnpm native:build`.
+- [ ] Start Gestura, open a trusted local VS Code file with `code --extensionDevelopmentPath="./integrations/vscode/dist"`, and verify pairing and a confirmed disposable edit.
+- [ ] Trust the localhost certificate, sideload the Excel manifest, and verify a confirmed formula write in a disposable workbook.
+
+Suggested commit message
+docs/setup: make Windows Excel and VS Code setup reproducible
 - apps/desktop/src/renderer/control/main.tsx; CalibrationWizard.tsx
 - apps/desktop/src/renderer/shared/DesktopConnection.tsx; desktop-connection.ts; desktop-connection.test.ts
 - docs/PROGRESS.md
@@ -1536,3 +1566,82 @@ Changed files for this change
 - docs/open-questions.md; decisions/0007-click-gestures.md; decisions/0004-local-face-tracking.md; PROGRESS.md
 
 Suggested commit message: feat(P2.4): map right-eye wink to right-click
+
+## P5.1 — VS Code extension validation — 2026-10-18
+
+Status: done
+Platforms checked: Windows ☑  macOS ☐
+
+What changed
+- Added a package-local Vitest configuration and `test` script for the VS Code integration's existing transaction tests.
+- Added a standalone runtime-validation plan covering typecheck, extension bundling, unit tests and VSIX packaging from the generated `dist` manifest.
+
+Measured numbers
+- Standalone validation: 4 assertions passed.
+- Vitest: 2 files / 11 tests passed.
+- Typecheck, extension build and VSIX packaging: passed.
+
+Known issues / follow-ups
+- VSIX packaging reports existing warnings for the missing repository/license metadata and `.vscodeignore`; packaging still succeeds.
+- macOS runtime acceptance and live pairing/edit confirmation remain manual checks.
+
+Manual checks for the human
+- [ ] Start Gestura and a trusted local VS Code window with `code --extensionDevelopmentPath="./integrations/vscode/dist"`.
+- [ ] Verify the status changes to connected, then review and explicitly confirm one disposable edit.
+- [ ] Verify blink, wink and dwell do not confirm; test cancel, pause, correction and staged undo.
+
+Suggested commit message
+test(P5.1): validate VS Code extension build and transactions
+
+## P5.1 — VS Code live pairing smoke test — 2026-10-18
+
+Status: partial
+Platforms checked: Windows ☑  macOS ☐
+
+What changed
+- Built the Windows native addon and launched the desktop app plus a disposable VS Code extension-development window.
+- Verified the extension host activated `gestura-local.gestura` from the generated `dist` bundle.
+- Verified the desktop bridge published `~/.gestura-vscode/pairing.json`; an independent second WebSocket client was rejected with HTTP 403 because the extension already held the single allowed connection.
+
+Measured numbers
+- Native addon build: passed; `gestura-native.win32-x64.node` produced.
+- Desktop renderer dev server: `http://localhost:5173` started.
+- VS Code extension activation: passed; no activation crash observed.
+
+Known issues / follow-ups
+- The automated session cannot inspect the VS Code status bar or perform the human confirmation gesture, so confirmed-edit behavior remains a manual acceptance check.
+- VS Code emitted a non-blocking Node deprecation warning while loading the bundled Zod schema.
+
+Manual checks for the human
+- [ ] Run `corepack pnpm dev`, then `corepack pnpm vscode:build`.
+- [ ] Open a trusted disposable file with `code --extensionDevelopmentPath="C:\\Users\\ASUS\\Documents\\GitHub\\gestura\\integrations\\vscode\\dist"`.
+- [ ] Verify `Gestura: connected`, review a proposal, confirm by voice or silent mouth hold, and verify exactly one edit is applied.
+- [ ] Verify blink, wink and dwell do not confirm; test cancel, pause, correction and staged undo.
+
+Suggested commit message
+test(P5.1): smoke test live VS Code pairing on Windows
+
+## P5.1 — Safe provider diagnostics for code proposals — 2026-10-18
+
+Status: done
+Platforms checked: Windows ☑  macOS ☐
+
+What changed
+- Added bounded provider failure categories for authentication, access, rate limiting, request rejection, timeout, network and invalid response failures.
+- Preserved the generic failure behavior while showing only a safe local diagnostic; API keys and raw provider response bodies remain hidden.
+- Added regression coverage for provider classification and the VS Code controller's authentication diagnostic.
+
+Measured numbers
+- Focused tests: 2 files / 13 tests passed.
+- GenAI and desktop typechecks: passed.
+
+Known issues / follow-ups
+- The provider diagnostic cannot verify account credits or model availability without making a real provider request.
+- Existing repository-wide CRLF/Prettier warnings were not changed.
+
+Manual checks for the human
+- [ ] Restart Gestura after editing `.env`, request a small VS Code proposal, and read the diagnostic if it fails.
+- [ ] For authentication failures, replace the key only in the local `.env`; never paste it into logs or chat.
+
+Suggested commit message
+fix(P5.1): expose safe provider diagnostics for code proposals

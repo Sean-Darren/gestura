@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "vitest run --config vitest.config.ts"
   },
   "displayName": "Gestura",
   "description": "Review and confirm hands-free code proposals from the local Gestura app.",

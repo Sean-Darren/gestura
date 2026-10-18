@@ -276,7 +276,8 @@ export function isSingleFunction(formula: string): boolean {
 
 // ── Re-exports for convenience ──────────────────────────────────────────────
 
-export { CloudProvider } from './providers/cloud'
+export { CloudProvider, CloudProviderError } from './providers/cloud'
+export type { CloudProviderFailure } from './providers/cloud'
 export { LocalProvider } from './providers/local'
 export { MockProvider } from './providers/mock'
 export { FormulaRouter } from './formula/router'

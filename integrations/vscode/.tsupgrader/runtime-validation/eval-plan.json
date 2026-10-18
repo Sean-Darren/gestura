@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-10-18T22:44:06+08:00",
+  "generatedOnPlatform": "win32",
+  "projectType": "plugin",
+  "setup": [],
+  "assertions": [
+    {
+      "name": "typecheck",
+      "kind": "process",
+      "command": "corepack",
+      "args": [
+        "pnpm",
+        "run",
+        "typecheck"
+      ],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 120
+    },
+    {
+      "name": "extension-build",
+      "kind": "process",
+      "command": "corepack",
+      "args": [
+        "pnpm",
+        "run",
+        "build"
+      ],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 120
+    },
+    {
+      "name": "tests-pass",
+      "kind": "process",
+      "command": "corepack",
+      "args": [
+        "pnpm",
+        "run",
+        "test"
+      ],
+      "verificationMethod": "test-results",
+      "expected": "0",
+      "timeoutSeconds": 180
+    },
+    {
+      "name": "vsix-package",
+      "kind": "process",
+      "command": "corepack",
+      "cwd": "dist",
+      "args": [
+        "pnpm",
+        "dlx",
+        "@vscode/vsce@3.6.0",
+        "package",
+        "--no-dependencies",
+        "--out",
+        "gestura-test.vsix"
+      ],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 180
+    }
+  ]
+}
