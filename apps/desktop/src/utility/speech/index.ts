@@ -27,6 +27,7 @@ parent.on('message', (event) => {
   if (!descriptor.success || !port) return
   attached = true
   let expectedSeq = 0
+  let firstAudioPacket = true
   port.on('message', (message) => {
     try {
       // Electron 44 MessagePortMain wraps in { data, ports }; a standard
@@ -45,6 +46,13 @@ parent.on('message', (event) => {
         return
       }
       const packet = AudioPacketSchema.parse(raw)
+      if (firstAudioPacket) {
+        firstAudioPacket = false
+        console.error(
+          `[speech worker] first audio packet accepted — seq=${packet.seq}, ` +
+            `samples=${packet.samples.length}`
+        )
+      }
       if (packet.seq !== expectedSeq++) throw new Error('Audio packet sequence mismatch')
       engine?.accept(packet.samples, packet.tCapture)
       port.postMessage(AudioAckSchema.parse({ seq: packet.seq }))

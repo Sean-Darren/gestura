@@ -1195,6 +1195,9 @@ What changed
   strictly `["audio"]` for media.
 - Added unit coverage for the speech-renderer URL recognizer, mismatched
   webContents IDs when the request target is verified, and speaker-selection.
+- Added local speech diagnostics for the formula-request no-output path: the
+  worker logs the first accepted audio packet, and the controller logs VAD
+  transitions plus transcript metadata (`lang` and character count only).
 
 Measured checks
 - `pnpm verify`: lint, workspace typecheck, 83 test files / 394 tests passed
