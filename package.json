@@ -12,7 +12,7 @@
     "native:bench": "pnpm native:build && pnpm --filter @gestura/desktop native:bench",
     "dev": "pnpm --filter @gestura/desktop dev",
     "excel:build": "pnpm --filter @gestura/excel-addin build",
-    "excel:dev": "node scripts/excel-setup.mjs && pnpm excel:build && pnpm dev",
+    "excel:dev": "pnpm excel:build && pnpm excel:sideload && pnpm dev",
     "excel:sideload": "mkdir -p \"$HOME/Library/Containers/com.microsoft.Excel/Data/Documents/wef\" && cp integrations/excel-addin/manifest.xml \"$HOME/Library/Containers/com.microsoft.Excel/Data/Documents/wef/\"",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0",
@@ -23,7 +23,6 @@
     "bench:pointing": "pnpm --filter @gestura/desktop bench:pointing",
     "bench:voice": "pnpm --filter @gestura/voice-bench exec node --import tsx src/cli.ts",
     "bench:voice:asr": "node scripts/voice-bench.mjs",
-    "bench:formula": "pnpm --filter @gestura/formula-bench exec node --import tsx src/cli.ts",
     "intents:generate": "pnpm --filter @gestura/voice-bench exec node --import tsx src/generate.ts"
   },
   "devDependencies": {

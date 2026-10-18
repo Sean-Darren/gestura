@@ -47,7 +47,10 @@ class CaptureProcessor extends AudioWorkletProcessor {
         }
         const packet = { seq: this.seq, tCapture: (this.origin ?? 0) + this.seq * 32, samples }
         this.seq++
-        this.destination.postMessage(packet, [samples.buffer])
+        // Structured-clone the Float32Array instead of transferring its buffer.
+        // Transferring across the AudioWorklet → utility-process MessagePort
+        // boundary can produce null messages in Electron 44.
+        this.destination.postMessage(packet)
       })
     }
   }

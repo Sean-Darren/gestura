@@ -110,7 +110,14 @@ export function createNativeInput(
     },
     async typeText(...args: [string, ConfirmedAction]): Promise<boolean> {
       const [text, confirmation] = ConfirmedTextArgsSchema.parse(args)
-      if (!active()) return false
+      const perm = binding?.hasInputPermission()
+      console.error(
+        `[native] typeText start: len=${text.length} active=${active()} hasPermission=${perm}`
+      )
+      if (!active()) {
+        console.error('[native] typeText aborted: not active (disposed or paused)')
+        return false
+      }
       const content = ConfirmedTextContentSchema.parse(confirmation.action.content)
       const age = performance.now() - confirmation.confirmedAt
       if (
@@ -127,12 +134,24 @@ export function createNativeInput(
       typing = true
       try {
         const characters = Array.from(text)
+        console.error(`[native] typeText injecting ${characters.length} chars in chunks of 16`)
         for (let index = 0; index < characters.length; index += 16) {
-          if (!active() || pauseRevision !== initialPauseRevision) return false
-          backend().typeText(characters.slice(index, index + 16).join(''))
+          if (!active() || pauseRevision !== initialPauseRevision) {
+            console.error(
+              `[native] typeText aborted mid-way at index ${index}: active=${active()} pauseRev=${pauseRevision} initial=${initialPauseRevision}`
+            )
+            return false
+          }
+          const chunk = characters.slice(index, index + 16).join('')
+          backend().typeText(chunk)
           await new Promise<void>((resolve) => setImmediate(resolve))
         }
-        return active() && pauseRevision === initialPauseRevision
+        const complete = active() && pauseRevision === initialPauseRevision
+        console.error(`[native] typeText done: complete=${complete}`)
+        return complete
+      } catch (error) {
+        console.error('[native] typeText error:', error)
+        throw error
       } finally {
         typing = false
       }

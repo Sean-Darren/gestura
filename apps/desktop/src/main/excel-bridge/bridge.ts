@@ -69,7 +69,12 @@ export class ExcelBridge {
     command: ExcelCommand,
     id: string
   ): Promise<ExcelContext | boolean | undefined> {
-    if (this.options.server.clientCount === 0) return undefined
+    if (this.options.server.clientCount === 0) {
+      console.warn(
+        `[excel-bridge] ${command.type} skipped because the Excel task pane is not connected.`
+      )
+      return undefined
+    }
     return await new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)

@@ -6,14 +6,17 @@ import {
   PaletteConfigSchema,
   EXCEL_FUNCTIONS,
   PALETTE_KEYS,
-  COMPOSER_CHARACTERS
+  COMPOSER_CHARACTERS,
+  createIpcEnvelope
 } from '@gestura/core'
 import type { FaceFrame, PaletteState, Intent } from '@gestura/core'
 import { MockNativeInput } from '@gestura/native/mock'
+import { FormulaRouter, MockProvider } from '@gestura/genai'
 import { PauseController } from '../pause'
 import { createNativeInput } from '../native'
 import { InputController, NON_VOICE_PATHS } from './controller'
 import { acceptsRendererChannel } from '../vision/ipc-policy'
+import type { ExcelBridge } from '../excel-bridge'
 
 type Options = ConstructorParameters<typeof InputController>[0]
 type Harness = {
@@ -32,7 +35,16 @@ type Harness = {
   advance(ms: number): void
   now(): number
 }
-function setup(gazeOnly = false, width = 1440, height = 900): Harness {
+function setup(
+  gazeOnly = false,
+  width = 1440,
+  height = 900,
+  extras: {
+    excelBridge?: Options['excelBridge']
+    formulaRouter?: Options['formulaRouter']
+    shareSamples?: boolean
+  } = {}
+): Harness {
   let t = 1000
   const pause = new PauseController(),
     mock = new MockNativeInput()
@@ -53,7 +65,10 @@ function setup(gazeOnly = false, width = 1440, height = 900): Harness {
     dragging: vi.fn(),
     pointerClick: vi.fn(),
     clipboard: vi.fn(async () => 'Clipboard 你好'),
-    save: vi.fn(async () => {})
+    save: vi.fn(async () => {}),
+    ...(extras.excelBridge ? { excelBridge: extras.excelBridge } : {}),
+    ...(extras.formulaRouter ? { formulaRouter: extras.formulaRouter } : {}),
+    ...(extras.shareSamples !== undefined ? { shareSamples: extras.shareSamples } : {})
   }
   const controller = new InputController(options)
   const activate = async (id: string): Promise<void> => {
@@ -144,7 +159,8 @@ describe('dictation and gaze-only controller', () => {
     )
     for (const name of EXCEL_FUNCTIONS) {
       await s.activate(`function:${name}`)
-      expect(s.controller.state.pending?.text).toBe(`=${name}(`)
+      const pending = s.controller.state.pending
+      expect(pending && pending.kind !== 'formula' ? pending.text : '').toBe(`=${name}(`)
       await s.activate('cancel')
     }
     await s.activate('compose:phrase')
@@ -181,6 +197,67 @@ describe('dictation and gaze-only controller', () => {
     expect(s.mock.calls).toEqual([])
     s.controller.dispose()
   })
+  it('publishes a valid formula proposal and writes only after the overlay acknowledges it', async () => {
+    const writeFormula = vi.fn(async () => true)
+    const excelBridge = {
+      getContext: vi.fn(async () => ({
+        sheetName: 'Sheet1',
+        selectionAddress: 'B1',
+        activeCell: 'B1',
+        headers: ['Amount'],
+        columnTypes: { A: 'text', B: 'number' },
+        usedRangeAddress: 'A1:B10',
+        samples: []
+      })),
+      writeFormula,
+      selectRange: vi.fn(() => true)
+    } as unknown as ExcelBridge
+    const formulaRouter = new FormulaRouter({
+      local: new MockProvider({
+        responses: {
+          'sum column b': {
+            status: 'ok',
+            formula: '=SUM(B2:B10)',
+            targetCell: 'B11',
+            references: ['B2', 'B10'],
+            functionsUsed: ['SUM'],
+            explanation: 'Adds the values in B2:B10.'
+          }
+        }
+      })
+    })
+    const s = setup(false, 1440, 900, { excelBridge, formulaRouter })
+    s.controller.setSpeechState(true, 'silent')
+
+    await s.activate('compose:formula')
+    expect(s.controller.state.formulaListening).toBe(true)
+    expect(
+      s.controller.state.tiles.find((tile) => tile.id === 'cancel')?.bounds.y ?? 0
+    ).toBeGreaterThanOrEqual(250)
+
+    await s.transcript('sum column b')
+    expect(s.controller.state.formulaListening).toBe(true)
+    expect(s.controller.state.pending).toBeNull()
+    expect(s.controller.state.draft).toContain('sum column b')
+
+    s.frame(0)
+    for (let i = 0; i < 11; i++) s.frame(0.8)
+    await s.controller.settle()
+
+    expect(() => createIpcEnvelope('palette:state', s.controller.state)).not.toThrow()
+    expect(s.controller.state.formulaListening).toBe(false)
+    expect(s.controller.state.pending?.kind).toBe('formula')
+    expect(s.controller.state.reviewPages).toBe(1)
+    expect(s.controller.state.reviewText).toContain('=SUM(B2:B10)')
+    expect(writeFormula).not.toHaveBeenCalled()
+
+    await s.shown()
+    await s.transcript('confirm')
+
+    expect(writeFormula).toHaveBeenCalledTimes(1)
+    expect(s.controller.state.pending).toBeNull()
+    s.controller.dispose()
+  })
   it('appends transcripts, revokes the old proposal and rejects confirmation before presentation or its onset', async () => {
     const s = setup()
     s.controller.setSpeechState(true, 'silent')
@@ -190,8 +267,12 @@ describe('dictation and gaze-only controller', () => {
     await s.shown()
     const onset = s.now()
     await s.transcript('=SUM(A1:A3)')
-    expect(s.controller.state.pending!.text).toBe('Hello 你好\n=SUM(A1:A3)')
-    expect(s.controller.state.pending!.id).not.toBe(old)
+    const pending = s.controller.state.pending!
+    expect(pending.kind).toBe('dictation')
+    if (pending.kind === 'dictation') {
+      expect(pending.text).toBe('Hello 你好\n=SUM(A1:A3)')
+      expect(pending.id).not.toBe(old)
+    }
     await s.controller.control({ operation: 'shown', id: old })
     await s.transcript('confirm')
     expect(s.mock.calls).toEqual([])

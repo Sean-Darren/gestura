@@ -37,6 +37,7 @@ export class SpeechController {
     micLive = this.status.micLive
   ): void {
     this.status = { state, message, micLive }
+    console.error(`[speech ctrl] state → ${state}${micLive ? ' (mic live)' : ''} — ${message}`)
     this.options.publish(this.status)
   }
   setEnabled(enabled: boolean): void {
@@ -53,7 +54,7 @@ export class SpeechController {
     }
     this.publish('loading', 'Loading local speech models', false)
     this.options.activity('unknown')
-    this.timeout = setTimeout(() => this.fail(), 30000)
+    this.timeout = setTimeout(() => this.fail(), 120000)
     try {
       this.options.start(generation, (value) => {
         if (!this.enabled || generation !== this.generation || this.options.pause.paused) return
@@ -82,6 +83,10 @@ export class SpeechController {
   capture(value: unknown): void {
     const parsed = SpeechCaptureStatusSchema.safeParse(value)
     if (!parsed.success || !this.enabled || parsed.data.generation !== this.generation) return
+    console.error(
+      `[speech ctrl] capture — gen ${parsed.data.generation}, ` +
+        `live: ${parsed.data.live}, error: ${parsed.data.error}`
+    )
     if (parsed.data.error) {
       this.fail()
       return
@@ -92,6 +97,7 @@ export class SpeechController {
     } else if (this.status.micLive) this.fail()
   }
   fail(): void {
+    console.error(new Error('[speech ctrl] fail() called — trace:').stack)
     this.setEnabled(false)
     this.publish(
       'error',

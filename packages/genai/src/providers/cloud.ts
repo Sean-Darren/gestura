@@ -22,11 +22,20 @@ export class CloudProvider implements Provider {
   private readonly perf: typeof globalThis.performance
 
   constructor(options: CloudProviderOptions) {
-    this.host = options.host.replace(/\/$/, '')
+    this.host = options.host
     this.apiKey = options.apiKey
     this.model = options.model
     this.fetchImpl = options.fetch ?? globalThis.fetch
     this.perf = options.performance ?? globalThis.performance
+  }
+
+  private chatCompletionsUrl(): string {
+    const base = (this.host.includes('://') ? this.host : `https://${this.host}`).replace(
+      /\/+$/,
+      ''
+    )
+    if (base.endsWith('/v1')) return `${base}/chat/completions`
+    return `${base}/v1/chat/completions`
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -45,7 +54,7 @@ export class CloudProvider implements Provider {
         }
       })
 
-      const response = await this.fetchImpl(`${this.host}/v1/chat/completions`, {
+      const response = await this.fetchImpl(this.chatCompletionsUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

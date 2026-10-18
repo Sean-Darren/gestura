@@ -10,7 +10,8 @@ Only use cell references within the used range. Never use blocked functions.
 Respond in the user's language.`
 
 export interface FormulaRouterOptions {
-  cloud: Provider
+  /** Cloud provider (optional). When absent, only the local provider is used. */
+  cloud?: Provider
   local: Provider
   timeoutMs?: number
   maxRetries?: number
@@ -20,10 +21,11 @@ export interface FormulaRouterOptions {
 
 /**
  * Cloud-first formula generation with 8s timeout → LocalProvider fallback
- * for single-function requests (Q16).
+ * for single-function requests (Q16). When no cloud provider is configured,
+ * routes directly to local.
  */
 export class FormulaRouter {
-  private readonly cloud: Provider
+  private readonly cloud: Provider | undefined
   private readonly local: Provider
   private readonly timeoutMs: number
   private readonly maxRetries: number
@@ -43,27 +45,40 @@ export class FormulaRouter {
     const prompt = this.buildPrompt(request)
     const history = request.history.slice(-this.maxHistory)
 
-    // Try cloud first
-    try {
-      return await this.tryGenerate(this.cloud, prompt, history, request.utterance)
-    } catch {
-      // Cloud failed — only fall back for single-function requests (Q16)
-      const isSingleFunctionRequest = this.looksLikeSingleFunction(request.utterance)
-      if (!isSingleFunctionRequest) {
-        return {
-          status: 'unsupported',
-          explanation:
-            'Formula generation is unavailable right now. Check your network connection and try again.'
+    // Cloud-first if configured; otherwise go straight to local.
+    if (this.cloud) {
+      try {
+        return await this.tryGenerate(this.cloud, prompt, history, request.utterance)
+      } catch {
+        // Cloud failed — only fall back for single-function requests (Q16)
+        const isSingleFunctionRequest = this.looksLikeSingleFunction(request.utterance)
+        if (!isSingleFunctionRequest) {
+          return {
+            status: 'unsupported',
+            explanation:
+              'Formula generation is unavailable right now. Check your network connection and try again.'
+          }
+        }
+        try {
+          return await this.tryGenerate(this.local, prompt, history, request.utterance)
+        } catch {
+          return {
+            status: 'unsupported',
+            explanation:
+              'Formula generation failed with both cloud and local providers. Ensure Ollama is running or check your network.'
+          }
         }
       }
-      try {
-        return await this.tryGenerate(this.local, prompt, history, request.utterance)
-      } catch {
-        return {
-          status: 'unsupported',
-          explanation:
-            'Formula generation failed with both cloud and local providers. Ensure Ollama is running or check your network.'
-        }
+    }
+
+    // No cloud configured — use local directly
+    try {
+      return await this.tryGenerate(this.local, prompt, history, request.utterance)
+    } catch {
+      return {
+        status: 'unsupported',
+        explanation:
+          'Formula generation failed. Ensure Ollama is running on the configured host or set up a cloud provider.'
       }
     }
   }

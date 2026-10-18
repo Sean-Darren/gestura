@@ -48,15 +48,38 @@ export function PhrasePalette(): JSX.Element | null {
       )}
       {state.open && (
         <header className="palette-heading" style={{ top: state.pending ? 362 : 82 }}>
-          <h2>{state.composer ? `Compose ${state.composer}` : 'Phrase palette'}</h2>
+          <h2>
+            {state.formulaListening
+              ? 'Formula request'
+              : state.composer
+                ? `Compose ${state.composer}`
+                : 'Phrase palette'}
+          </h2>
           <p>
-            {state.settings.gazeOnly
-              ? 'Gaze-only · microphone off'
-              : state.dictating
-                ? 'Dictation on'
-                : 'Dwell or blink to select'}
+            {state.formulaListening
+              ? 'Listening — say the formula, then close and open your mouth to finish.'
+              : state.settings.gazeOnly
+                ? 'Gaze-only · microphone off'
+                : state.dictating
+                  ? 'Dictation on'
+                  : 'Dwell or blink to select'}
           </p>
-          {state.composer && (
+          {state.formulaListening ? (
+            <>
+              <div className="palette-draft" role="status" aria-label="Captured formula request">
+                {state.draft || 'Listening for formula request…'}
+              </div>
+              <progress
+                className="formula-hold-progress"
+                max={1}
+                value={state.holdProgress}
+                aria-label="Formula request finish hold"
+              />
+              <span className="mouth-countdown">
+                {(1 - state.holdProgress).toFixed(1)} s mouth hold remaining
+              </span>
+            </>
+          ) : state.composer ? (
             <div
               className="palette-draft"
               role="textbox"
@@ -65,7 +88,7 @@ export function PhrasePalette(): JSX.Element | null {
             >
               {state.draft || 'Choose characters below. Use draft creates a proposal.'}
             </div>
-          )}
+          ) : null}
         </header>
       )}
       {state.tiles.map((tile) => (

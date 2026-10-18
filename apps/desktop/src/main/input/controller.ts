@@ -72,6 +72,8 @@ export class InputController {
   private settings: PaletteConfig
   private open = false
   private dictating = false
+  private formulaListening = false
+  private formulaMicWasOn = false
   private composer: Composer | null = null
   private draft = ''
   private page = 0
@@ -151,6 +153,7 @@ export class InputController {
       open: this.open,
       paused: this.options.pause.paused,
       dictating: this.dictating,
+      formulaListening: this.formulaListening,
       busy: this.busy,
       page: this.page,
       pages: this.pages,
@@ -171,18 +174,29 @@ export class InputController {
   private emit(): void {
     if (!this.disposed) this.options.publish(this.state)
   }
+  private get reviewSource(): string {
+    if (!this.pending) return ''
+    if (this.pending.kind === 'formula') {
+      return `${this.pending.formula} → ${this.pending.targetCell}`
+    }
+    return this.pending.text
+  }
   private get reviewPages(): string[] {
-    return reviewTextPages(this.pending?.text ?? '', this.options.display().width)
+    return reviewTextPages(this.reviewSource, this.options.display().width)
   }
   private enqueue(operation: () => Promise<void> | void): Promise<void> {
     this.queue = this.queue
       .then(async () => {
         if (!this.disposed) await operation()
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('[input] action failed:', error)
         this.cancel()
-        this.message =
-          'Action unavailable. Check Accessibility permission and the destination, then retry.'
+        const detail =
+          error instanceof Error && /[Pp]ermission|[Aa]ccessibility/.test(error.message)
+            ? 'Accessibility permission is required. Open System Settings → Privacy & Security → Accessibility and enable Gestura.'
+            : 'Action unavailable. Check Accessibility permission and the destination, then retry.'
+        this.message = detail
       })
       .finally(() => this.emit())
     return this.queue
@@ -193,11 +207,72 @@ export class InputController {
   setSpeechState(live: boolean, activity?: 'unknown' | 'silent' | 'speaking'): void {
     this.listening = live
     if (activity) this.speechActivity = activity
+    if (!live && this.formulaListening) {
+      this.stopFormulaDictation()
+      this.message = 'Formula request stopped because the microphone turned off.'
+    }
     this.emit()
   }
   toggleListening(): void {
     if (this.settings.gazeOnly || this.options.pause.paused) return
+    if (this.formulaListening) {
+      this.stopFormulaDictation()
+      this.message = 'Formula request cancelled.'
+      return
+    }
     this.options.listening(!this.listening)
+  }
+  private startFormulaDictation(): void {
+    if (this.settings.gazeOnly) {
+      this.cancel()
+      this.composer = 'formula'
+      this.open = true
+      this.draft = ''
+      this.page = 0
+      this.message = 'Gaze-only: type the formula request, then choose Use draft.'
+      return
+    }
+    this.cancel()
+    this.formulaMicWasOn = this.listening
+    this.formulaListening = true
+    this.composer = null
+    this.open = true
+    this.draft = ''
+    this.page = 0
+    this.message =
+      'Formula request listening. Say the formula, then close your mouth and open it to finish.'
+    if (!this.listening) this.options.listening(true)
+  }
+  private stopFormulaDictation(): void {
+    const wasMicOn = this.formulaMicWasOn
+    this.formulaListening = false
+    this.formulaMicWasOn = false
+    this.composer = null
+    this.open = false
+    this.draft = ''
+    this.holdProgress = 0
+    this.mouth.reset()
+    if (!wasMicOn) this.options.listening(false)
+  }
+  private async finishFormulaDictation(): Promise<void> {
+    const utterance = this.draft.trim()
+    if (!utterance) {
+      this.message =
+        'Say the formula request first. Close your mouth, then open and hold to finish.'
+      return
+    }
+    this.stopFormulaDictation()
+    await this.handleFormulaRequest(utterance)
+  }
+  private typeFormulaInstead(): void {
+    this.formulaListening = false
+    this.formulaMicWasOn = false
+    this.composer = 'formula'
+    this.open = true
+    this.draft = ''
+    this.page = 0
+    this.options.listening(false)
+    this.message = 'Type the formula request, then choose Use draft.'
   }
   gestureToggleListening(t: number): void {
     // P2.4 events share the fresh main-side hold guard; duplicate events in one frame are consumed once.
@@ -209,6 +284,8 @@ export class InputController {
     this.revision++
     if (this.pending) this.gate.cancel(this.pending.id)
     this.pending = null
+    this.formulaListening = false
+    this.formulaMicWasOn = false
     this.target = undefined
     this.shown = false
     this.holdProgress = 0
@@ -269,18 +346,21 @@ export class InputController {
         { role: 'user', content: utterance },
         { role: 'assistant', content: result.formula }
       )
+      this.cancel()
       const proposalId = this.gate.propose({
         kind: 'formula',
         content: { formula: result.formula, target: result.targetCell }
       } as FormulaAction)
-      this.gate.markShown(proposalId)
       this.pending = {
         id: proposalId,
-        text: `=${result.formula} → ${result.targetCell}`,
         kind: 'formula',
+        formula: result.formula,
+        explanation: result.explanation,
+        references: result.references,
+        targetCell: result.targetCell,
+        correctionCount: 0,
         target: 'Excel'
       }
-      this.shown = true
       this.proposalTime = this.options.now()
       this.reviewPage = 0
       this.target = await this.options.foreground()
@@ -323,6 +403,12 @@ export class InputController {
     }
   }
   private items(): Item[] {
+    if (this.formulaListening) {
+      return [
+        { id: 'cancel', label: 'Cancel formula' },
+        { id: 'type-formula', label: 'Type formula instead' }
+      ]
+    }
     if (this.composer) {
       return [
         { id: 'compose:done', label: this.composer === 'phrase' ? 'Save phrase' : 'Use draft' },
@@ -381,7 +467,7 @@ export class InputController {
       disabled: !!item.disabled || this.options.pause.paused || this.busy,
       bounds: { x: 12 + i * (dockWidth + 8), y: 12, width: dockWidth, height: 64 }
     }))
-    let y = this.pending ? 414 : 132
+    let y = this.pending ? 414 : this.formulaListening ? 250 : 132
     if (this.pending) {
       this.tiles.push(
         ...[
@@ -535,12 +621,17 @@ export class InputController {
       frame.tCapture,
       frame.blendshapes.jawOpen,
       permitted,
-      pending ? 1000 : (this.options.gestures ?? DEFAULT_GESTURE_CONFIG).jawHoldMs
+      pending || this.formulaListening
+        ? 1000
+        : (this.options.gestures ?? DEFAULT_GESTURE_CONFIG).jawHoldMs
     )
     this.holdProgress = hold.progress
     if (hold.fired) {
       if (pending) void this.enqueue(() => this.confirm(pending.id, { kind: 'held-mouth-gesture' }))
-      else {
+      else if (this.formulaListening) {
+        this.mouthToggleAt = frame.tCapture
+        void this.enqueue(() => this.finishFormulaDictation())
+      } else {
         this.mouthToggleAt = frame.tCapture
         this.gestureToggleListening(frame.tCapture)
       }
@@ -550,6 +641,35 @@ export class InputController {
     const transcript = TranscriptSchema.parse(value)
     return this.enqueue(async () => {
       if (this.settings.gazeOnly || this.options.pause.paused || !this.listening) return
+      if (this.formulaListening) {
+        const formulaControl = this.matcher.match(
+          transcript.text,
+          { pendingProposal: false },
+          transcript.tSpeechStart
+        )
+        const isControl =
+          formulaControl.kind === 'match' &&
+          formulaControl.method === 'template' &&
+          ['cancel', 'pause', 'confirm'].includes(formulaControl.intent.id)
+        if (isControl) {
+          if (formulaControl.intent.id === 'pause') {
+            await this.dispatch(formulaControl.intent)
+          } else if (formulaControl.intent.id === 'cancel') {
+            this.stopFormulaDictation()
+            this.message = 'Formula request cancelled.'
+          } else {
+            this.message = 'No formula is ready to confirm. Say the formula you want first.'
+          }
+          return
+        }
+        const utterance = transcript.text.trim()
+        if (!utterance) return
+        this.draft = DraftTextSchema.parse(
+          (this.draft ? `${this.draft} ${utterance}` : utterance).slice(0, 2000)
+        )
+        this.message = 'Formula request captured. Close your mouth, then open and hold to finish.'
+        return
+      }
       let result = this.matcher.match(
         transcript.text,
         { pendingProposal: !!this.pending },
@@ -591,14 +711,12 @@ export class InputController {
     })
   }
   private async confirm(id: string, evidence: ConfirmationEvidence): Promise<void> {
-    if (
-      !this.pending ||
-      this.pending.id !== id ||
-      !this.shown ||
-      this.busy ||
-      this.options.pause.paused
-    )
+    if (!this.pending || this.pending.id !== id) return
+    if (this.busy || this.options.pause.paused) return
+    if (!this.shown) {
+      this.message = 'Review the whole card first, then confirm.'
       return
+    }
     const revision = this.revision
     const target = this.target
     const current = await this.options.foreground()
@@ -621,6 +739,9 @@ export class InputController {
     try {
       if (pending.kind === 'formula') {
         const wrote = await this.options.excelBridge?.writeFormula(confirmed)
+        console.warn(
+          `[input] formula write ${wrote ? 'succeeded' : 'failed'} for ${pending.targetCell}`
+        )
         this.lastInsertion = wrote && target ? { target, t: this.options.now() } : undefined
         this.message = wrote
           ? 'Formula written to the sheet. Undo that is available for 15 seconds.'
@@ -691,8 +812,13 @@ export class InputController {
       case 'confirm':
         return // Only trusted speech onset or the mouth state machine can provide evidence.
       case 'cancel':
-        this.cancel()
-        this.message = 'Proposal cancelled.'
+        if (this.formulaListening) {
+          this.stopFormulaDictation()
+          this.message = 'Formula request cancelled.'
+        } else {
+          this.cancel()
+          this.message = 'Proposal cancelled.'
+        }
         return
       case 'open-phrase-palette':
         this.open = true
@@ -767,6 +893,8 @@ export class InputController {
     // Only presently visible, enabled actions can be selected over IPC.
     if (!this.tiles.some((tile) => tile.id === id && !tile.disabled)) return
     if (id === 'listen') this.toggleListening()
+    else if (id === 'compose:formula') this.startFormulaDictation()
+    else if (id === 'type-formula') this.typeFormulaInstead()
     else if (id === 'palette') {
       this.open = !this.open
       this.composer = null

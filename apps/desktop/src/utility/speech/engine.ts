@@ -27,20 +27,6 @@ export class SpeechEngine {
     }
   ) {
     const config = SpeechConfigSchema.parse(options.config ?? DEFAULT_SPEECH_CONFIG)
-    this.recognizer = new sherpa.OfflineRecognizer({
-      featConfig: { sampleRate: 16000, featureDim: 80 },
-      modelConfig: {
-        senseVoice: {
-          model: join(options.directory, 'model.int8.onnx'),
-          language: '',
-          useInverseTextNormalization: 1
-        },
-        tokens: join(options.directory, 'tokens.txt'),
-        numThreads: config.numThreads,
-        provider: 'cpu',
-        debug: 0
-      }
-    })
     this.vad = new sherpa.Vad(
       {
         sileroVad: {
@@ -58,6 +44,20 @@ export class SpeechEngine {
       },
       30
     )
+    this.recognizer = new sherpa.OfflineRecognizer({
+      featConfig: { sampleRate: 16000, featureDim: 80 },
+      modelConfig: {
+        senseVoice: {
+          model: join(options.directory, 'model.int8.onnx'),
+          language: '',
+          useInverseTextNormalization: 1
+        },
+        tokens: join(options.directory, 'tokens.txt'),
+        numThreads: config.numThreads,
+        provider: 'cpu',
+        debug: 0
+      }
+    })
   }
   accept(samples: Float32Array, tCapture: number): void {
     if (this.disposed) return
@@ -102,8 +102,11 @@ export class SpeechEngine {
         })
         this.options.transcript(value)
       }
-    } catch {
-      if (!this.disposed) this.options.error()
+    } catch (error) {
+      if (!this.disposed) {
+        console.error('[speech engine] decode error:', error)
+        this.options.error()
+      }
     } finally {
       this.decoding = false
     }

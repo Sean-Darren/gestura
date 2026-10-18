@@ -19,10 +19,15 @@ export class LocalProvider implements Provider {
   private readonly perf: typeof globalThis.performance
 
   constructor(options: LocalProviderOptions) {
-    this.host = options.host.replace(/\/$/, '')
+    this.host = options.host
     this.model = options.model
     this.fetchImpl = options.fetch ?? globalThis.fetch
     this.perf = options.performance ?? globalThis.performance
+  }
+
+  private chatUrl(): string {
+    const base = (this.host.includes('://') ? this.host : `http://${this.host}`).replace(/\/+$/, '')
+    return `${base}/api/chat`
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -39,7 +44,7 @@ export class LocalProvider implements Provider {
       }
     })
 
-    const response = await this.fetchImpl(`${this.host}/api/chat`, {
+    const response = await this.fetchImpl(this.chatUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,

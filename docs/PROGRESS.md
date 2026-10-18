@@ -1088,3 +1088,135 @@ Changed files (P4.2 manifest)
 - docs/PROGRESS.md
 
 Changes left uncommitted for human review, commit and push. docs remains gitignored under the human's existing preference; include it deliberately when committing.
+
+## P4.2-fix — Formula overlay + speech-first formula request — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- Fixed formula proposals being dropped by IPC validation: `PaletteState.pending` for `kind: 'formula'` now contains the full formula payload (`formula`, `explanation`, `references`, `targetCell`, `correctionCount`, `target`) instead of the text-only dictation shape.
+- Added a formula-specific review source so the confirmation card shows the generated formula, target cell and explanation.
+- Removed eager `ActionGate.markShown`/`shown = true` from the formula path. Formula proposals now become confirmable only after the overlay renders the card and sends the normal `palette:control { operation: 'shown' }` acknowledgement.
+- Made the palette “Formula request” tile speech-first: it starts microphone capture in a dedicated formula-listening mode, accumulates final transcripts across pauses, and submits them to `handleFormulaRequest()` only after a close-then-open mouth hold with the same 1-second visible progress bar as dictation confirmation. Exact “cancel”, “pause”, and “confirm” are still handled as controls while in this mode.
+- Kept gaze-only parity: when gaze-only is on, the formula tile falls back to the existing typed formula composer. Voice users can also choose “Type formula instead”.
+- Added `formulaListening` to `PaletteState` and a dedicated overlay header/status for formula dictation.
+- Moved formula-listening action tiles below the captured formula draft so long utterances are not covered by Cancel/Type controls.
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, and 81 test files / 388 tests passed (6 skipped).
+- `electron-vite build` passed.
+- New/updated controller regression test covers the speech-first formula request path, valid `palette:state` IPC, and confirmation only after overlay acknowledgement.
+
+Known issues / follow-ups
+- Live OpenRouter/Ollama formula generation, Office add-in confirmation, real Excel writes and Windows runtime remain manual checks.
+- Formula dictation is one-shot; clarification follow-ups are not yet re-captured by voice.
+
+Manual checks for the human
+- [ ] With Excel connected and GenAI configured, select the Formula request tile, speak a request such as “formula for sum of column B”, and confirm the overlay switches to formula-listening mode.
+- [ ] Speak in segments with pauses and confirm the request is still accumulating. Close your mouth, then open/hold to finish, and confirm the formula proposal card appears with formula/target/explanation.
+- [ ] While finishing with the mouth hold, confirm the formula progress bar fills for one second before the request is submitted.
+- [ ] Say “confirm” only after the card appears; verify the formula is written. Try confirming before the card appears and confirm nothing is written.
+- [ ] Toggle gaze-only on and confirm the formula tile still opens the typed composer.
+- [ ] Repeat on Windows 11 with a teammate.
+
+Suggested commit message
+feat(P4.2): make formula request speech-first and publish valid formula proposals
+
+
+## P4.2-fix-2 — Read GenAI .env and harden Excel write diagnostics — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- `loadAppConfig` now accepts an optional `.env` path and loads the repo-root
+  `.env` in development (`GESTURA_ENV_PATH` overrides the path). No dotenv
+  dependency was added; the parser handles blank lines, comments and quoted
+  values.
+- OpenRouter env wiring now uses `OPENROUTER_BASE_URL` (default
+  `https://openrouter.ai/api/v1`) and adds only the host portion to
+  `network.allowlist`.
+- `CloudProvider` now normalizes bare hosts to `https://` and correctly appends
+  `/v1/chat/completions` when the configured base already ends in `/v1`.
+  `LocalProvider` now normalizes `127.0.0.1:11434` to
+  `http://127.0.0.1:11434/api/chat`.
+- `ExcelBridge.sendAndWait` logs a local warning when the Excel task pane is not
+  connected, and `InputController.confirm` logs the formula write result. The
+  confirmation path now tells the user to review the whole card if confirmation
+  arrives before the overlay acknowledgement.
+- `pnpm excel:dev` now builds the add-in and sideloads its manifest before
+  starting the app, so the Excel bridge is reconnected after add-in changes.
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, 83 test files / 393 tests passed
+  (6 skipped).
+- `pnpm excel:build` passed.
+- `electron-vite build` passed.
+- Added provider URL tests and `.env` loading tests.
+
+Known issues / follow-ups
+- Real Excel task-pane connection, OpenRouter generation, Office.js write and
+  Windows runtime remain manual checks.
+- The add-in must still be reloaded once after a code change; `pnpm excel:dev`
+  rebuilds and sideloads the manifest, but Excel may need a task-pane reload.
+
+Manual checks for the human
+- [ ] Run `pnpm excel:dev`, open Excel, and confirm the task pane shows
+      “Connected to Gestura.”
+- [ ] Create a small table, run a formula request, confirm with the mouth hold
+      after the card appears, and verify the formula lands in the selected
+      target cell and the cell becomes selected.
+- [ ] If the card has multiple pages, use Next text until the final page before
+      confirming; the new message will say to review the whole card otherwise.
+
+Suggested commit message
+fix(P4.2): load .env GenAI config and normalize provider endpoints for Excel writes
+
+
+## P4.2-fix-3 — Keep the local speech mic alive when Electron checks permissions from another renderer — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- Speech microphone permission checks now identify the dedicated capture page by
+  `requestingUrl` (`.../speech/index.html`) instead of trusting only the
+  `webContents.id` passed to Electron's permission handlers.
+- The speech path no longer logs/denies media checks coming from the vision,
+  control, or overlay windows; those checks now fall through to the camera
+  permission path and do not disturb the live microphone stream.
+- `allowSpeechMicrophone` keeps exact audio-only gating for new media requests,
+  but now accepts `speaker-selection` for the dedicated speech renderer while
+  listening. This covers Electron's extra audio-device permission check without
+  granting microphone or camera access to non-speech windows.
+- The permission-check handler treats `mediaType` `"unknown"` as speech audio,
+  while still rejecting `"video"`. The permission-request handler remains
+  strictly `["audio"]` for media.
+- Added unit coverage for the speech-renderer URL recognizer, mismatched
+  webContents IDs when the request target is verified, and speaker-selection.
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, 83 test files / 394 tests passed
+  (6 skipped).
+- `pnpm --filter @gestura/desktop exec electron-vite build` passed.
+
+Known issues / follow-ups
+- Windows runtime remains unverified.
+- This fixes the permission-path microphone kill observed on macOS. If a future
+  run still drops after `state → listening`, capture the new speech-denial
+  reason from the same logs; it should now show the specific check that failed
+  rather than `contentsId 3 !== captureId 4`.
+
+Manual checks for the human
+- [ ] Run `pnpm dev`, start listening, and confirm the mic stays in
+      `Listening locally` instead of turning off immediately.
+- [ ] Confirm the noisy `[speech perm] denied: contentsId 3 !== captureId 4`
+      lines are gone while vision/camera is running.
+- [ ] Start a dictation and a formula request with pauses; confirm transcripts
+      still appear and the Excel formula flow still reaches the confirmation
+      card.
+- [ ] Repeat on Windows 11 with a teammate.
+
+Suggested commit message
+fix(speech): trust the dedicated speech renderer URL in permission checks

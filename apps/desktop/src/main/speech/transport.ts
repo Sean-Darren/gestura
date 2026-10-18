@@ -21,14 +21,10 @@ export class SpeechTransport {
   }
   start(generation: number, receive: (value: unknown) => void): void {
     this.stop()
-    console.error('[transport] creating capture window')
     this.capture = this.options.createCapture()
-    console.error('[transport] capture window created, id:', this.capture.id)
     this.capture.webContents.once('render-process-gone', () => receive({ kind: 'error' }))
     this.capture.webContents.once('did-fail-load', () => receive({ kind: 'error' }))
     const modulePath = join(__dirname, 'speech.js')
-    console.error('[transport] forking worker:', modulePath)
-    console.error('[transport] directory:', this.options.directory)
     const worker = utilityProcess.fork(
       modulePath,
       [this.options.directory, JSON.stringify(this.options.config)],
@@ -37,14 +33,16 @@ export class SpeechTransport {
         stdio: 'pipe'
       }
     )
-    console.error('[transport] worker forked, pid:', worker.pid)
     this.worker = worker
     worker.on('message', receive)
     worker.stderr?.on('data', (chunk: Buffer) => {
       console.error('[speech worker stderr]', chunk.toString())
     })
-    worker.once('exit', () => {
-      if (this.worker === worker) receive({ kind: 'error' })
+    worker.once('exit', (code) => {
+      if (this.worker === worker) {
+        console.error(`[transport] worker exited with code ${code}, signalling error`)
+        receive({ kind: 'error' })
+      }
     })
     void generation
   }
@@ -71,6 +69,10 @@ export class SpeechTransport {
     // Main transfers both endpoints without listening on either audio-bearing port.
     this.worker.postMessage(descriptor, [port1])
     this.capture.webContents.postMessage('gestura:speech-port', descriptor, [port2])
+    console.error(
+      `[transport] attach OK — gen ${descriptor.generation}, ` +
+        `capture webContents ${this.capture.webContents.id}`
+    )
   }
   stop(): void {
     const worker = this.worker

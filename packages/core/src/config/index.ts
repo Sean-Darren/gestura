@@ -15,7 +15,7 @@ const NetworkHostSchema = z
   }, 'Expected a host name, optionally with a port')
 
 export const NetworkConfigSchema = z
-  .object({ allowlist: z.array(NetworkHostSchema).default([]) })
+  .object({ allowlist: z.array(NetworkHostSchema).default(['127.0.0.1:11434']) })
   .strict()
 
 export const LoggingConfigSchema = z.object({ enabled: z.boolean().default(false) }).strict()
@@ -169,8 +169,7 @@ export const DEFAULT_INTENT_CONFIG = IntentConfigSchema.parse({})
 
 export const ExcelConfigSchema = z
   .object({
-    // Loopback bridge server is opt-in during the P4.1 spike; P4.2/P4.3 flip this on.
-    enabled: z.boolean().default(false),
+    enabled: z.boolean().default(true),
     port: z.number().int().min(1024).max(65535).default(3510),
     // Q15: sample cell values leave the device only behind a visible, opt-in toggle.
     shareSampleValues: z.boolean().default(false)
@@ -191,7 +190,7 @@ export type GenaiCloudProviderConfig = z.infer<typeof GenaiCloudProviderConfigSc
 export const GenaiLocalProviderConfigSchema = z
   .object({
     host: z.string().default('127.0.0.1:11434'),
-    model: z.string().min(1).default(''),
+    model: z.string().min(1).default('llama3.2'),
     enabled: z.boolean().default(true)
   })
   .strict()
@@ -211,7 +210,7 @@ export const GenaiConfigSchema = z
     cloudProvider: GenaiCloudProviderConfigSchema.optional(),
     localProvider: GenaiLocalProviderConfigSchema.default({
       host: '127.0.0.1:11434',
-      model: '',
+      model: 'llama3.2',
       enabled: true
     }),
     formula: GenaiFormulaConfigSchema.default({ timeoutMs: 8000, maxRetries: 1, maxHistory: 20 })
@@ -222,7 +221,7 @@ export const DEFAULT_GENAI_CONFIG = GenaiConfigSchema.parse({})
 
 export const AppConfigSchema = z
   .object({
-    network: NetworkConfigSchema.default({ allowlist: [] }),
+    network: NetworkConfigSchema.default({ allowlist: ['127.0.0.1:11434'] }),
     logging: LoggingConfigSchema.default({ enabled: false }),
     pointer: PointerConfigSchema.default(DEFAULT_POINTER_CONFIG),
     pointerProfile: PointerProfileSchema.default({ neutral: { yaw: 0, pitch: 0 } }),
