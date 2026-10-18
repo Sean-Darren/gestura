@@ -37,7 +37,8 @@ export class EyeHysteresis {
 export function eyeScores(
   frame: FaceFrame,
   baseline: EarBaseline | undefined,
-  aspectRatio: number
+  aspectRatio: number,
+  thresholds?: { closedScore: number; openScore: number }
 ): { left: number | undefined; right: number | undefined } {
   const ratios =
     baseline && Math.abs(baseline.aspectRatio - aspectRatio) < 0.01
@@ -48,8 +49,20 @@ export function eyeScores(
     const ratio = ratios[eye] / baseline[eye]
     return ratio <= baseline.closedRatio ? 1 : ratio >= baseline.openRatio ? 0 : 0.5
   }
+  const resolve = (eye: 'left' | 'right', score: number | undefined): number | undefined => {
+    // Only resolve the hysteresis band. A strongly closed blendshape always wins.
+    if (
+      score !== undefined &&
+      thresholds &&
+      score > thresholds.openScore &&
+      score < thresholds.closedScore &&
+      fallback(eye) === 0
+    )
+      return thresholds.openScore
+    return score ?? fallback(eye)
+  }
   return {
-    left: frame.blendshapes.eyeBlinkLeft ?? fallback('left'),
-    right: frame.blendshapes.eyeBlinkRight ?? fallback('right')
+    left: resolve('left', frame.blendshapes.eyeBlinkLeft),
+    right: resolve('right', frame.blendshapes.eyeBlinkRight)
   }
 }

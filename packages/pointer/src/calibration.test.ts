@@ -4,6 +4,21 @@ import type { CalibrationObservation } from './calibration'
 import { scriptedWizard, completeBlinkPhase, completeTargets } from './calibration-fixture'
 
 describe('calibration state machine', () => {
+  it('learns reopening from both eyes, including the eye with a higher resting score', () => {
+    const s = scriptedWizard()
+    for (let i = 0; i < 3; i++) {
+      s.observe({ left: 0.9, right: 0.9 }, 13)
+      s.observe({ left: 0.9, right: 0.1 }, 2)
+      expect(s.wizard.index).toBe(i)
+      s.observe({ left: 0.28, right: 0.1 })
+    }
+    s.observe({ left: 0.28, right: 0.1 }, 220)
+    expect(s.wizard.stage).toBe('quick-test')
+    completeTargets(s)
+    const profile = s.wizard.profile(s.time())
+    expect(profile.blink.openScore).toBeGreaterThan(0.28)
+    expect(profile.blink.openScore).toBeLessThan(profile.blink.closedScore)
+  })
   it('retries insufficient ranges and does not mistake a wink for a deliberate blink', () => {
     const w = new CalibrationWizard(0, { width: 1280, height: 720, scaleFactor: 1 })
     const observe = (t: number): void =>

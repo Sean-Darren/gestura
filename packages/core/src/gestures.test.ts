@@ -1,8 +1,63 @@
 import { describe, expect, it } from 'vitest'
-import { EarBaselineSchema, GestureEventSchema, GestureControlSchema } from './gestures'
+import {
+  EarBaselineSchema,
+  GestureEventSchema,
+  GestureControlSchema,
+  GestureDiagnosticsSchema
+} from './gestures'
 import { GestureConfigSchema, DEFAULT_GESTURE_CONFIG } from './config'
 import { createIpcEnvelope } from './index'
 describe('gesture contracts', () => {
+  it('accepts the selected right-wink source and rejects the former left-wink mapping', () => {
+    const click = { kind: 'click', button: 'right', source: 'right-wink', x: 1, y: 2, t: 0 }
+    expect(GestureEventSchema.safeParse(click).success).toBe(true)
+    expect(GestureEventSchema.safeParse({ ...click, source: 'left-wink' }).success).toBe(false)
+  })
+  it('validates diagnostics through the existing narrow overlay IPC channel', () => {
+    const diagnostics = {
+      detection: {
+        left: 'open',
+        right: 'closed',
+        phase: 'tracking',
+        reason: 'ready',
+        durationMs: 350,
+        minLongBlinkMs: 600,
+        maxLongBlinkMs: 1500,
+        winkMinMs: 250,
+        closedScore: 0.6,
+        openScore: 0.3
+      },
+      detectedClicks: 1,
+      sentClicks: 0,
+      delivery: 'failed',
+      deliveryMessage: 'Native input failed'
+    }
+    const parsed = GestureDiagnosticsSchema.parse(diagnostics)
+    expect(
+      createIpcEnvelope('gestures:state', {
+        mode: 'blink',
+        paused: false,
+        frozen: true,
+        dwellProgress: 0,
+        pauseProgress: 0,
+        cursor: null,
+        click: null,
+        message: '',
+        width: 1280,
+        height: 720,
+        pauseTargetSize: 72,
+        gestureDiagnostics: parsed
+      }).channel
+    ).toBe('gestures:state')
+    expect(GestureDiagnosticsSchema.safeParse({ ...parsed, sentClicks: -1 }).success).toBe(false)
+    expect(GestureDiagnosticsSchema.safeParse({ ...parsed, samples: [] }).success).toBe(false)
+    expect(
+      GestureDiagnosticsSchema.safeParse({
+        ...parsed,
+        detection: { ...parsed.detection, reason: 'guess' }
+      }).success
+    ).toBe(false)
+  })
   it('defaults off and rejects invalid thresholds and dwell timing', () => {
     expect(DEFAULT_GESTURE_CONFIG.mode).toBe('off')
     for (const patch of [

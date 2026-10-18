@@ -303,11 +303,12 @@ export class CalibrationWizard {
       }
     } else if (this.stage === 'deliberate-blinks' || this.stage === 'natural-blinks') {
       const score = Math.min(left, right)
+      const openScore = Math.max(left, right)
       if (score >= 0.6) {
         this.closedSince ??= t
         if (this.closedScores.length < 2000) this.closedScores.push(score)
-      } else if (score <= 0.3) {
-        if (this.openScores.length < 2000) this.openScores.push(score)
+      } else if (openScore <= 0.3) {
+        if (this.openScores.length < 2000) this.openScores.push(openScore)
         if (this.closedSince !== undefined) {
           const duration = t - this.closedSince
           this.closedSince = undefined

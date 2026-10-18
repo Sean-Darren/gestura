@@ -10,30 +10,39 @@ import { PauseController } from '../pause'
 import { createNativeInput } from '../native'
 import { MockNativeInput } from '../../../../../native/gestura-native/mock'
 import { testFrame } from '../../../../../packages/pointer/src/test-frames'
-import type { PointerMetrics } from '@gestura/core'
+import type { PointerMetrics, GestureDiagnostics } from '@gestura/core'
 function setup(interceptClick?: (point: { x: number; y: number }) => boolean): {
   controller: PointerController
   mock: MockNativeInput
   pause: PauseController
   reports: PointerMetrics[]
+  feedback: GestureDiagnostics[]
+  bridge: ReturnType<typeof createNativeInput>
   setTime(time: number): void
 } {
   const mock = new MockNativeInput(),
     pause = new PauseController(),
-    reports: PointerMetrics[] = []
+    reports: PointerMetrics[] = [],
+    feedback: GestureDiagnostics[] = []
   let time = 1000
+  const bridge = createNativeInput(pause, () => mock)
   const controller = new PointerController({
     ...(interceptClick ? { interceptClick } : {}),
-    bridge: createNativeInput(pause, () => mock),
+    bridge,
     pause,
     now: () => time,
-    publish: (metrics) => reports.push(metrics)
+    publish: (metrics) => reports.push(metrics),
+    feedback: (value) => {
+      if (value.gestureDiagnostics) feedback.push(value.gestureDiagnostics)
+    }
   })
   return {
     controller,
     mock,
     pause,
     reports,
+    feedback,
+    bridge,
     setTime: (value) => {
       time = value
     }
@@ -243,6 +252,12 @@ describe('gesture native dispatch', () => {
     expect(click).toBeGreaterThan(0)
     expect(s.mock.calls[click - 1]).toEqual({ method: 'moveTo', args: [frozen.x, frozen.y] })
     expect(s.mock.calls[click]?.args).toEqual(['left'])
+    expect(s.feedback.at(-1)).toMatchObject({
+      detectedClicks: 1,
+      sentClicks: 1,
+      delivery: 'sent',
+      detection: { reason: 'accepted' }
+    })
   })
   it('consumes overlay blink selections before any OS click and gates voice clicks on pause/replay', () => {
     let intercepted = 0
@@ -254,6 +269,11 @@ describe('gesture native dispatch', () => {
     s.sample(1750)
     expect(intercepted).toBe(1)
     expect(s.mock.calls.some((call) => call.method === 'click')).toBe(false)
+    expect(s.feedback.at(-1)).toMatchObject({
+      detectedClicks: 1,
+      sentClicks: 0,
+      delivery: 'overlay'
+    })
     s.controller.clickAtCursor('double-click')
     expect(s.mock.calls.filter((call) => call.method === 'doubleClick')).toHaveLength(1)
     s.pause.toggle()
@@ -262,6 +282,44 @@ describe('gesture native dispatch', () => {
     s.controller.setSource('replaying')
     s.controller.clickAtCursor('double-click')
     expect(s.mock.calls.filter((call) => call.method === 'doubleClick')).toHaveLength(1)
+    s.controller.dispose()
+  })
+  it('reports a right-eye wink as a right click sent to native input', () => {
+    const s = calibrated()
+    for (let t = 1100; t <= 1450; t += 50) s.sample(t, 0, 0.9)
+    s.sample(1500)
+    expect(s.mock.calls.filter((call) => call.method === 'click')).toMatchObject([
+      { args: ['right'] }
+    ])
+    expect(s.feedback.at(-1)).toMatchObject({ detectedClicks: 1, sentClicks: 1, delivery: 'sent' })
+    s.controller.dispose()
+  })
+  it('does not count a blocked native call as sent', () => {
+    const s = calibrated()
+    s.bridge.click = () => false
+    for (let t = 1100; t <= 1700; t += 50) s.sample(t, 0.9)
+    s.sample(1750)
+    expect(s.feedback.at(-1)).toMatchObject({
+      detectedClicks: 1,
+      sentClicks: 0,
+      delivery: 'blocked'
+    })
+    s.controller.dispose()
+  })
+  it('reports a detected click separately from a native failure', () => {
+    const s = calibrated()
+    s.mock.click = () => {
+      throw new Error('Accessibility input permission is required')
+    }
+    for (let t = 1100; t <= 1700; t += 50) s.sample(t, 0.9)
+    s.sample(1750)
+    expect(s.feedback.at(-1)).toMatchObject({
+      detectedClicks: 1,
+      sentClicks: 0,
+      delivery: 'failed'
+    })
+    expect(s.feedback.at(-1)?.deliveryMessage).toContain('Accessibility')
+    expect(s.controller.metrics.enabled).toBe(false)
     s.controller.dispose()
   })
   it('releases drag on pause and never dispatches a paused click or move', () => {

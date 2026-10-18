@@ -16,7 +16,7 @@ The AI coding agent reads this file before every step.
 | Q4 | How does the user give explicit confirmation? | Default | Spoken "confirm" / "確認", or a 1 s held mouth gesture with a visible countdown. Never a blink, wink or dwell. | P0.3 |
 | Q5 | Head, gaze, or both drive the cursor? | Default | Head pose for fine control, gaze for coarse jumps; user can switch gaze off. | P2.2 |
 | Q6 | Multi-monitor and high-DPI in MVP? | Default | Primary monitor only, DPI/Retina-aware. | P2.2 |
-| Q7 | Gesture mapping for left/right/double click and drag? | Default | Long blink (400 ms, tunable) = left click; left wink = right click; dwell as alternative; drag via voice-toggled drag mode. | P2.4 |
+| Q7 | Gesture mapping for left/right/double click and drag? | Answered | Long blink (400 ms, tunable) = left click; right-eye wink = right click (maintainer decision 2026-10-18; replaces left wink); dwell as alternative; drag via voice-toggled drag mode. | P2.4 |
 | Q8 | How are interaction logs handled? | Default | Local-only, opt-in, user-deletable. Never exported automatically. | P2.5 |
 | Q9 | Benchmark sets and baseline? | Default | Plan builds the harnesses; team writes the cases. Baseline = [HEAD MOUSE PRODUCT] + the OS on-screen keyboard. Target sizes 16/24/32/48 px. | P2.5 |
 | Q10 | What does "mouth movements" mean? | Default | Both: held jaw-open toggles listening; GenAI requests are spoken. | P3.3 |

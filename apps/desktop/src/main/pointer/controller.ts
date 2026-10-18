@@ -1,6 +1,6 @@
 import { GestureEngine } from '@gestura/gestures'
 import type { SpeechState } from '@gestura/gestures'
-import type { GestureEvent, OverlayState } from '@gestura/core'
+import type { GestureEvent, OverlayState, GestureDiagnostics } from '@gestura/core'
 import { GestureEventSchema } from '@gestura/core'
 import { DEFAULT_GESTURE_CONFIG, GestureConfigSchema } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
@@ -41,6 +41,10 @@ export class PointerController {
   private lastClick: OverlayState['click'] = null
   private dwellProgress = 0
   private gestureMessage = ''
+  private detectedClicks = 0
+  private sentClicks = 0
+  private delivery: GestureDiagnostics['delivery'] = 'none'
+  private deliveryMessage = 'No click gesture detected yet'
   private speech: SpeechState = 'unknown'
   aspectRatio = 16 / 9
   private display: PointerDisplay | undefined
@@ -80,7 +84,13 @@ export class PointerController {
       feedback?(
         state: Pick<
           OverlayState,
-          'mode' | 'cursor' | 'frozen' | 'dwellProgress' | 'click' | 'message'
+          | 'mode'
+          | 'cursor'
+          | 'frozen'
+          | 'dwellProgress'
+          | 'click'
+          | 'message'
+          | 'gestureDiagnostics'
         >
       ): void
       reserved?(point: { x: number; y: number }): boolean
@@ -179,18 +189,54 @@ export class PointerController {
     }
     if (!this.enabled || this.replay || this.options.pause.paused || !this.display) return
     if (event.kind === 'click' || event.kind === 'mouseDown') {
-      if (event.kind === 'click' && this.options.interceptClick?.(event)) return
-      if (this.options.reserved?.(event)) return
+      if (event.kind === 'click') this.detectedClicks++
+      if (event.kind === 'click' && this.options.interceptClick?.(event)) {
+        this.delivery = 'overlay'
+        this.deliveryMessage = 'Gesture handled by Gestura; no system click sent'
+        return
+      }
+      if (this.options.reserved?.(event)) {
+        this.delivery = 'blocked'
+        this.deliveryMessage = 'Pause control reserves this position; no system click sent'
+        return
+      }
       const destination =
         event.kind === 'click' ? (this.options.snapping?.click(event) ?? event) : event
-      if (this.options.reserved?.(destination)) return
+      if (this.options.reserved?.(destination)) {
+        this.delivery = 'blocked'
+        this.deliveryMessage = 'Destination is reserved for pause; no system click sent'
+        return
+      }
       this.options.externalAction?.()
       const point = toNativePoint(destination.x, destination.y, this.display)
-      if (!this.options.bridge.moveTo(point.x, point.y)) return
-      if (event.kind === 'click') {
-        if (this.options.bridge.click(event.button))
-          this.lastClick = { x: destination.x, y: destination.y, button: event.button, t: event.t }
-      } else this.options.bridge.mouseDown('left')
+      try {
+        if (!this.options.bridge.moveTo(point.x, point.y)) {
+          this.delivery = 'blocked'
+          this.deliveryMessage = 'Native movement stopped; no click sent'
+          return
+        }
+        if (event.kind === 'click') {
+          if (this.options.bridge.click(event.button)) {
+            this.sentClicks++
+            this.delivery = 'sent'
+            this.deliveryMessage = `${event.button === 'left' ? 'Left' : 'Right'} click sent to native input; OS delivery is not confirmed`
+            this.lastClick = {
+              x: destination.x,
+              y: destination.y,
+              button: event.button,
+              t: event.t
+            }
+          } else {
+            this.delivery = 'blocked'
+            this.deliveryMessage = 'Native click stopped; check pause and pointer status'
+          }
+        } else this.options.bridge.mouseDown('left')
+      } catch (error) {
+        this.delivery = 'failed'
+        this.deliveryMessage =
+          'Native input failed. Check Accessibility permission and re-enable pointer control.'
+        throw error
+      }
     }
     if (event.kind === 'toggleListening') this.options.toggleListening?.(event.t)
     // toggleListening remains an internal Phase 3 event; it never confirms an ActionGate proposal.
@@ -211,7 +257,16 @@ export class PointerController {
       frozen,
       dwellProgress,
       click: this.lastClick,
-      message: this.gestureMessage
+      message: this.gestureMessage,
+      gestureDiagnostics: this.gesture
+        ? {
+            detection: this.gesture.diagnostics,
+            detectedClicks: this.detectedClicks,
+            sentClicks: this.sentClicks,
+            delivery: this.delivery,
+            deliveryMessage: this.deliveryMessage
+          }
+        : undefined
     })
   }
   get metrics(): PointerMetrics {

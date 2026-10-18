@@ -24,7 +24,7 @@ export const SCRIPT_PROMPTS = [
   'Look at the bottom-left of your screen',
   'Look at the bottom-right of your screen',
   'Long blink now',
-  'Wink left',
+  'Wink right',
   'Read this text aloud: Hello, Gestura. 你好。',
   'Open mouth and hold'
 ] as const

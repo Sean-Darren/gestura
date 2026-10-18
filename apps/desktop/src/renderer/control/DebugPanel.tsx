@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX, ButtonHTMLAttributes } from 'react'
 import type { IpcPayloadFor, VisionMetrics, VisionStatus, PointerMetrics } from '@gestura/core'
+import type { GestureDiagnostics } from '@gestura/core'
+import { gestureReasonText } from './gesture-feedback'
 
 export function DwellButton({
   onClick,
@@ -63,6 +65,7 @@ const emptyMetrics: VisionMetrics = {
 export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): JSX.Element {
   const [gestureMode, setGestureMode] = useState<'off' | 'blink' | 'dwell'>('off')
   const [gestureMessage, setGestureMessage] = useState('Click gestures are off')
+  const [gestureDiagnostics, setGestureDiagnostics] = useState<GestureDiagnostics | undefined>()
   const [status, setStatus] = useState<VisionStatus>({
     state: 'stopped',
     message: 'Start tracking to measure this camera',
@@ -97,6 +100,7 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
       window.gestura.on('gestures:state', (state) => {
         setGestureMode(state.mode)
         setGestureMessage(state.message)
+        setGestureDiagnostics(state.gestureDiagnostics)
       }),
       window.gestura.on('vision:status', setStatus),
       window.gestura.on('vision:metrics', setMetrics),
@@ -230,7 +234,7 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
               {mode === 'off'
                 ? 'Disable clicks'
                 : mode === 'blink'
-                  ? 'Use blink / left wink'
+                  ? 'Use blink / right wink'
                   : 'Use dwell clicks'}
             </DwellButton>
           ))}
@@ -238,8 +242,44 @@ export function DebugPanel({ gazeEnabled = false }: { gazeEnabled?: boolean }): 
             {paused ? 'Resume input' : 'Pause input'}
           </DwellButton>
         </div>
+        {gestureDiagnostics && (
+          <div aria-label="Blink feedback" aria-live="off">
+            <h3>Blink feedback</h3>
+            <p>
+              {paused
+                ? 'Input paused; no click is sent.'
+                : gestureMode !== 'blink'
+                  ? 'Select Use blink / right wink to test blink gestures.'
+                  : !pointer.enabled
+                    ? 'Head pointer is off. Enable pointer control before testing clicks.'
+                    : pointer.replay
+                      ? 'Replay preview; no system click is sent.'
+                      : gestureDiagnostics.detection.phase === 'tracking' &&
+                          gestureDiagnostics.detection.reason === 'ready'
+                        ? 'Eyes closing. Reopen to complete the gesture.'
+                        : gestureReasonText(gestureDiagnostics.detection.reason)}
+            </p>
+            <p>
+              Left eye: {gestureDiagnostics.detection.left} · Right eye:{' '}
+              {gestureDiagnostics.detection.right}
+              {' · '}Closure: {Math.round(gestureDiagnostics.detection.durationMs)} ms
+            </p>
+            <p>
+              Both eyes: {Math.round(gestureDiagnostics.detection.minLongBlinkMs)}–
+              {Math.round(gestureDiagnostics.detection.maxLongBlinkMs)} ms. Right-eye wink: at least{' '}
+              {Math.round(gestureDiagnostics.detection.winkMinMs)} ms. Closed score ≥{' '}
+              {gestureDiagnostics.detection.closedScore.toFixed(2)}; open score ≤{' '}
+              {gestureDiagnostics.detection.openScore.toFixed(2)}.
+            </p>
+            <p>
+              Click gestures detected this session: {gestureDiagnostics.detectedClicks}. Sent to
+              native input: {gestureDiagnostics.sentClicks}. Last click delivery:{' '}
+              {gestureDiagnostics.deliveryMessage}
+            </p>
+          </div>
+        )}
         <p className="hint">
-          Calibrate first. Long blink = left click; left wink = right click. Natural blinks do not
+          Calibrate first. Long blink = left click; right wink = right click. Natural blinks do not
           click. Use Local speech to start listening. A held mouth gesture can stop it between
           phrases. Camera stays on during pause for corner-dwell resume; Stop Tracking turns it off.
         </p>

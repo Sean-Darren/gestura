@@ -6,7 +6,7 @@ import { PointerPipeline, headPose } from '@gestura/pointer'
 import type { PauseController } from '../pause'
 export type PointerFeedback = Pick<
   OverlayState,
-  'mode' | 'cursor' | 'frozen' | 'dwellProgress' | 'click' | 'message'
+  'mode' | 'cursor' | 'frozen' | 'dwellProgress' | 'click' | 'message' | 'gestureDiagnostics'
 >
 export class OverlayController {
   private readonly headCorner = new CornerDwell()

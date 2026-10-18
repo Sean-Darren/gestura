@@ -1,4 +1,4 @@
-import type { CalibrationProfile, FaceFrame, GestureEvent } from '@gestura/core'
+import type { CalibrationProfile, FaceFrame, GestureEvent, GestureDetection } from '@gestura/core'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import type { GestureConfig } from '@gestura/core/config'
 import { EyeHysteresis, eyeScores } from './eyes'
@@ -16,6 +16,7 @@ interface Closure {
   leftOpened: boolean
   rightOpened: boolean
   invalid: boolean
+  reason: GestureDetection['reason'] | undefined
 }
 export interface GestureResult {
   events: GestureEvent[]
@@ -25,6 +26,26 @@ export interface GestureResult {
   eyesOpen: boolean
 }
 export class GestureEngine {
+  private observedEyes: Pick<GestureDetection, 'left' | 'right'> = {
+    left: 'unknown',
+    right: 'unknown'
+  }
+  private observation: Pick<GestureDetection, 'phase' | 'reason' | 'durationMs'> = {
+    phase: 'waiting',
+    reason: 'eyes-not-open',
+    durationMs: 0
+  }
+  get diagnostics(): GestureDetection {
+    return {
+      ...this.observation,
+      ...this.observedEyes,
+      minLongBlinkMs: Math.max(400, this.blink.minLongBlinkMs),
+      maxLongBlinkMs: this.config.maxLongBlinkMs,
+      winkMinMs: this.config.winkMinMs,
+      closedScore: this.blink.closedScore,
+      openScore: this.blink.openScore
+    }
+  }
   private readonly left = new EyeHysteresis()
   private readonly right = new EyeHysteresis()
   private armed = false
@@ -45,6 +66,8 @@ export class GestureEngine {
     readonly config: GestureConfig = DEFAULT_GESTURE_CONFIG
   ) {}
   reset(point: Point = { x: 0, y: 0 }, t = 0): GestureEvent[] {
+    this.observedEyes = { left: 'unknown', right: 'unknown' }
+    this.observation = { phase: 'waiting', reason: 'eyes-not-open', durationMs: 0 }
     const events: GestureEvent[] = this.dragging
       ? [{ kind: 'mouseUp', button: 'left', ...point, t }]
       : []
@@ -91,7 +114,10 @@ export class GestureEngine {
     if (t <= this.lastT) return empty(!!this.closure)
     if (!frame.faceDetected || t - this.lastT > this.config.staleMs) {
       events.push(...this.reset(point, t))
-      if (!frame.faceDetected) return empty()
+      if (!frame.faceDetected) {
+        this.observation.reason = 'face-lost'
+        return empty()
+      }
     }
     this.lastT = t
     const jaw = frame.blendshapes.jawOpen ?? 0
@@ -116,7 +142,7 @@ export class GestureEngine {
         this.jawLatched = true
       }
     } else this.jawSince = undefined
-    const scores = eyeScores(frame, this.blink.ear, aspectRatio)
+    const scores = eyeScores(frame, this.blink.ear, aspectRatio, this.blink)
     // EAR fallback uses binary endpoints, mapped onto each profile's blendshape hysteresis.
     const fallback = (
       value: number | undefined,
@@ -139,8 +165,13 @@ export class GestureEngine {
       this.blink.closedScore,
       this.blink.openScore
     )
+    this.observedEyes = { left, right }
     if (left === 'unknown' || right === 'unknown') {
+      const observedLeft = left,
+        observedRight = right
       events.push(...this.reset(point, t))
+      this.observedEyes = { left: observedLeft, right: observedRight }
+      this.observation.reason = 'invalid-eye-signal'
       return empty()
     }
     const open = left === 'open' && right === 'open',
@@ -148,8 +179,10 @@ export class GestureEngine {
     let frozen = false,
       frozenPoint = point
     if (this.config.mode === 'blink') {
-      if (!open && !this.armed && !this.closure)
+      if (!open && !this.armed && !this.closure) {
+        this.observation = { phase: 'waiting', reason: 'eyes-not-open', durationMs: 0 }
         return { events, frozen: true, point, dwellProgress: 0, eyesOpen: false }
+      }
       if (!open && this.armed && !this.closure)
         this.closure = {
           t,
@@ -159,14 +192,20 @@ export class GestureEngine {
           firstOpen: undefined,
           leftOpened: false,
           rightOpened: false,
-          invalid: !safe
+          invalid: !safe,
+          reason: !quiet ? 'speech' : !safe ? 'moving' : undefined
         }
       const c = this.closure
       if (c) {
+        const invalidate = (reason: GestureDetection['reason']): void => {
+          c.invalid = true
+          c.reason ??= reason
+        }
+        this.observation = { phase: 'tracking', reason: c.reason ?? 'ready', durationMs: t - c.t }
         frozen = true
         frozenPoint = c.point
         if ((c.leftOpened && left === 'closed') || (c.rightOpened && right === 'closed'))
-          c.invalid = true
+          invalidate('reclosed')
         if (c.left !== undefined && left === 'open') c.leftOpened = true
         if (c.right !== undefined && right === 'open') c.rightOpened = true
         if (left === 'closed') c.left ??= t
@@ -176,14 +215,15 @@ export class GestureEngine {
           (c.right !== undefined && right === 'open')
         )
           c.firstOpen ??= t
-        if (
-          !safe ||
-          (c.left !== undefined && c.right !== undefined && t - c.t > this.config.maxLongBlinkMs)
-        )
-          c.invalid = true
+        if (!safe) invalidate(!quiet ? 'speech' : 'moving')
+        if (c.left !== undefined && c.right !== undefined && t - c.t > this.config.maxLongBlinkMs)
+          invalidate('too-long')
+        this.observation.reason = c.reason ?? 'ready'
         if (open) {
           const ready =
             !this.dragging && !c.invalid && t - this.lastAction >= this.config.cooldownMs
+          let reason: GestureDetection['reason'] =
+            c.reason ?? (this.dragging ? 'dragging' : !ready ? 'cooldown' : 'ready')
           if (c.left !== undefined && c.right !== undefined) {
             const duration = (c.firstOpen ?? t) - Math.max(c.left, c.right)
             if (
@@ -194,23 +234,45 @@ export class GestureEngine {
             ) {
               events.push({ kind: 'click', button: 'left', source: 'long-blink', ...c.point, t })
               this.lastAction = t
+              reason = 'accepted'
+            } else if (ready) {
+              reason =
+                Math.abs(c.left - c.right) > this.config.onsetSyncMs
+                  ? 'unsynchronised'
+                  : duration < Math.max(400, this.blink.minLongBlinkMs)
+                    ? 'too-short'
+                    : 'too-long'
             }
+            this.observation.durationMs = Math.max(0, duration)
           } else {
             const duration = t - c.t,
               eye = c.left !== undefined ? 'left' : 'right'
             if (ready && duration >= this.config.winkMinMs) {
               events.push({ kind: 'wink', eye, t })
-              if (eye === 'left') {
-                events.push({ kind: 'click', button: 'right', source: 'left-wink', ...c.point, t })
+              if (eye === 'right') {
+                events.push({ kind: 'click', button: 'right', source: 'right-wink', ...c.point, t })
                 this.lastAction = t
+                reason = 'accepted'
+              } else {
+                reason = 'left-wink-unmapped'
               }
+            } else if (ready) {
+              reason = 'too-short'
             }
           }
           this.closure = undefined
+          this.observation.phase = reason === 'accepted' ? 'accepted' : 'rejected'
+          this.observation.reason = reason
         }
       }
-      if (open) this.armed = true
+      if (open) {
+        this.armed = true
+        if (this.observation.phase === 'waiting')
+          this.observation = { phase: 'ready', reason: 'ready', durationMs: 0 }
+      }
     }
+    if (this.config.mode === 'off')
+      this.observation = { phase: 'waiting', reason: 'mode-off', durationMs: 0 }
     let dwellProgress = 0
     if (this.config.mode === 'dwell' && !this.dragging && open && safe) {
       if (

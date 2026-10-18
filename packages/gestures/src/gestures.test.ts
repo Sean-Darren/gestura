@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import type { CalibrationProfile, FaceFrame, GestureEvent } from '@gestura/core'
 import { GestureEngine, CornerDwell, EyeHysteresis, eyeAspectRatios } from './index'
+import { GestureDetectionSchema } from '@gestura/core'
 const blink: CalibrationProfile['blink'] = {
   closedScore: 0.6,
   openScore: 0.3,
@@ -34,6 +35,89 @@ function closure(duration: number, left = true, right = true, speed = 0): Gestur
   return events
 }
 describe('click gesture timing and state', () => {
+  it.each([
+    [150, true, true, 0, 0, 'too-short'],
+    [1800, true, true, 0, 0, 'too-long'],
+    [600, true, true, 1000, 0, 'moving'],
+    [600, true, true, 0, 0.5, 'speech'],
+    [300, true, false, 0, 0, 'left-wink-unmapped'],
+    [600, true, true, 0, 0, 'accepted'],
+    [300, false, true, 0, 0, 'accepted']
+  ] as const)('reports a %s ms closure as %s', (duration, left, right, speed, jaw, reason) => {
+    const e = engine()
+    e.update(frame(0), point, 0)
+    for (let t = 50; t < 50 + duration; t += 50)
+      e.update(frame(t, left ? 0.9 : 0, right ? 0.9 : 0, jaw), point, speed)
+    e.update(frame(50 + duration), point, 0)
+    expect(GestureDetectionSchema.parse(e.diagnostics).reason).toBe(reason)
+    expect(e.diagnostics.phase).toBe(reason === 'accepted' ? 'accepted' : 'rejected')
+    expect(e.diagnostics.durationMs).toBe(duration)
+    e.update(frame(100 + duration), point, 0)
+    expect(e.diagnostics.reason).toBe(reason)
+  })
+  it('shows eye states and the actual calibrated limits without changing hysteresis', () => {
+    const e = new GestureEngine(
+      { ...blink, minLongBlinkMs: 650 },
+      { ...DEFAULT_GESTURE_CONFIG, mode: 'blink' }
+    )
+    e.update(frame(0, 0.45, 0), point, 0)
+    expect(e.diagnostics).toMatchObject({
+      left: 'unknown',
+      right: 'open',
+      reason: 'invalid-eye-signal',
+      minLongBlinkMs: 650
+    })
+    e.update(frame(50), point, 0)
+    expect(e.diagnostics).toMatchObject({ left: 'open', right: 'open', phase: 'ready' })
+    e.update(frame(100, 0.9, 0.9), point, 0)
+    e.update(frame(150, 0.9, 0.9), point, 0)
+    expect(e.diagnostics).toMatchObject({
+      left: 'closed',
+      right: 'closed',
+      phase: 'tracking',
+      durationMs: 50
+    })
+  })
+  it('explains starting with closed eyes, missing faces and disabled mode', () => {
+    const e = engine()
+    e.update(frame(0, 0.9, 0.9), point, 0)
+    expect(e.diagnostics.reason).toBe('eyes-not-open')
+    e.update({ ...frame(50), faceDetected: false }, point, 0)
+    expect(e.diagnostics.reason).toBe('face-lost')
+    const off = new GestureEngine(blink)
+    off.update(frame(0), point, 0)
+    expect(off.diagnostics.reason).toBe('mode-off')
+  })
+  it('explains unsynchronised eyes and keeps non-overlapping durations valid', () => {
+    const e = engine()
+    e.update(frame(0), point, 0)
+    for (let t = 50; t <= 650; t += 50)
+      e.update(frame(t, t < 150 ? 0.9 : 0, t >= 150 && t < 650 ? 0.9 : 0), point, 0)
+    expect(GestureDetectionSchema.parse(e.diagnostics)).toMatchObject({
+      reason: 'unsynchronised',
+      durationMs: 0
+    })
+  })
+  it('reports eyes reclosing during a gesture', () => {
+    const e = engine()
+    e.update(frame(0), point, 0)
+    for (let t = 50; t <= 600; t += 50)
+      e.update(frame(t, t === 400 || t === 600 ? 0 : 0.9, t === 600 ? 0 : 0.9), point, 0)
+    expect(e.diagnostics.reason).toBe('reclosed')
+  })
+  it('reports cooldown and dragging without emitting another click', () => {
+    const e = engine()
+    e.update(frame(0), point, 0)
+    for (let t = 50; t < 450; t += 50) e.update(frame(t, 0.9, 0.9), point, 0)
+    e.update(frame(450), point, 0)
+    for (let t = 500; t < 800; t += 50) e.update(frame(t, 0, 0.9), point, 0)
+    expect(e.update(frame(800), point, 0).events).toEqual([])
+    expect(e.diagnostics.reason).toBe('cooldown')
+    e.setDragging(true, point, 850)
+    for (let t = 850; t < 1500; t += 50) e.update(frame(t, 0.9, 0.9), point, 0)
+    expect(e.update(frame(1500), point, 0).events).toEqual([])
+    expect(e.diagnostics.reason).toBe('dragging')
+  })
   it('uses hysteresis without toggling in the uncertainty band', () => {
     const eye = new EyeHysteresis()
     expect(eye.update(0.5, 0.6, 0.3)).toBe('unknown')
@@ -51,13 +135,13 @@ describe('click gesture timing and state', () => {
     for (const duration of [50, 150, 200, 250, 350, 1550, 2000])
       expect(closure(duration).filter((e) => e.kind === 'click')).toEqual([])
   })
-  it('requires left wink >=250 ms, distinguishes right winks, and supports longer unilateral holds', () => {
-    expect(closure(250, true, false).filter((e) => e.kind === 'click')).toMatchObject([
-      { button: 'right', source: 'left-wink' }
+  it('requires right wink >=250 ms, distinguishes left winks, and supports longer unilateral holds', () => {
+    expect(closure(250, false, true).filter((e) => e.kind === 'click')).toMatchObject([
+      { button: 'right', source: 'right-wink' }
     ])
-    expect(closure(200, true, false).filter((e) => e.kind === 'click')).toEqual([])
-    expect(closure(2000, true, false).filter((e) => e.kind === 'click')).toHaveLength(1)
-    expect(closure(400, false, true)).toMatchObject([{ kind: 'wink', eye: 'right' }])
+    expect(closure(200, false, true).filter((e) => e.kind === 'click')).toEqual([])
+    expect(closure(2000, false, true).filter((e) => e.kind === 'click')).toHaveLength(1)
+    expect(closure(400, true, false)).toMatchObject([{ kind: 'wink', eye: 'left' }])
   })
   it('freezes on onset, emits only after reopening and clicks at the immutable captured position', () => {
     const e = engine()

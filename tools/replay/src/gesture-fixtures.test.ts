@@ -5,7 +5,7 @@ import { DEFAULT_GESTURE_CONFIG } from '@gestura/core/config'
 import { parseFixture, SessionLabelsSchema } from './index'
 import type { GestureEvent } from '@gestura/core'
 describe('labelled synthetic gesture replay (not human accuracy)', () => {
-  it('reports long-blink recall, natural/reading/talking clicks and left-wink detection', async () => {
+  it('reports long-blink recall, natural/reading/talking clicks and right-wink detection', async () => {
     const root = new URL('../../../fixtures/landmarks/p2.4-gestures-synthetic', import.meta.url)
     const frames = parseFixture(await readFile(new URL(`${root.href}.jsonl`), 'utf8'))
     const labels = SessionLabelsSchema.parse(
@@ -33,7 +33,7 @@ describe('labelled synthetic gesture replay (not human accuracy)', () => {
           0
         )
     const long = count('Deliberate long blink', 'click'),
-      wink = count('Wink left', 'wink')
+      wink = count('Wink right', 'wink')
     const rate = (name: string): number =>
       (count(name, 'click') * 60000) /
       labels.prompts.filter((p) => p.prompt === name).reduce((sum, p) => sum + p.end - p.start, 0)
@@ -42,11 +42,12 @@ describe('labelled synthetic gesture replay (not human accuracy)', () => {
       { metric: 'Natural clicks/min (synthetic)', value: rate('Natural blinking') },
       { metric: 'Reading clicks/min (synthetic)', value: rate('Reading silently') },
       { metric: 'Talking clicks (synthetic)', value: count('Reading aloud / talking', 'click') },
-      { metric: 'Left-wink detection (synthetic)', value: `${wink}/5 = ${wink * 20}%` }
+      { metric: 'Right-wink detection (synthetic)', value: `${wink}/5 = ${wink * 20}%` }
     ])
     expect(events.filter((e) => e.kind === 'click')).toHaveLength(10)
     expect(long / 5).toBeGreaterThanOrEqual(0.95)
     expect(wink).toBe(5)
+    expect(events.filter((e) => e.kind === 'click' && e.source === 'right-wink')).toHaveLength(5)
     expect(rate('Natural blinking')).toBe(0)
     expect(rate('Reading silently')).toBe(0)
     expect(count('Reading aloud / talking', 'click')).toBe(0)

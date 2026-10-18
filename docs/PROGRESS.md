@@ -1398,3 +1398,141 @@ Changed files
 - docs/PROGRESS.md
 
 Suggested commit message: fix(P2.3): preserve calibration across fullscreen and expose startup failures
+
+## 2026-10-18 — P3.1 repair: Electron microphone audio packet delivery
+
+Approved scope: continue the microphone-startup investigation from the approved startup repair after the human reported immediate “Speech unavailable” with no permission prompt.
+
+Findings and changes
+- Reproduced using the actual hidden capture renderer, bundled preload, MessageChannelMain and real speech utility process on macOS arm64 / Electron 44.7.1. Worker/model initialization passed; microphone capture opened, but the worker received null instead of an audio packet when AudioWorklet posted a packet with its ArrayBuffer in the transfer list. Zod correctly rejected null and stopped speech. This was not a missing-model failure.
+- Changed AudioWorklet output to structured-clone each 512-float / 2 KiB packet without transferring the backing ArrayBuffer. The renderer-to-speech port still bypasses main; no samples or transcripts were inspected, recorded or uploaded by diagnostics. This adds roughly 64 KB/s of sample copying at 16 kHz and does not affect the cursor hot path.
+- Added a worklet regression harness using synthetic samples. It loads the actual processor, checks independently cloned Float32Array packets, validates sequence/timestamp continuity and 512-sample envelopes, rejects transfer-list regressions and checks clean stop.
+- No new dependencies, commands, workflow, permission-policy changes or UI edits. Removed one pre-existing trailing blank line from packages/core/src/index.ts to satisfy the lint gate; that file now matches HEAD. No other human edits were present or changed.
+
+Checks
+- Before fix: actual Electron capture reached live:true, then worker rejected the incoming null object and failed. After fix: both development URL and production file:// capture paths stayed live for five seconds without worker error; the dedicated diagnostic then destroyed the capture window and killed the worker, closing the mic. The tests used the microphone with the human's existing authorization; no audio was saved or sent to main/network. No transcript text was printed by the probe.
+- Worker initialization and all three local speech assets: PASS. Microphone OS status was initially not-determined; the diagnostic exercised the real media request. No OS permission database or settings were bypassed or reset.
+- pnpm verify: PASS, zero lint warnings, all workspace typechecks, 530 tests passed, 6 existing tests skipped; 115 passing files and 1 skipped file; final Vitest duration 4.49 seconds.
+- Desktop production build: PASS, existing third-party Rollup annotation warnings only.
+- git diff --check: PASS. No git writes, live GenAI requests or OS input injection. Temporary diagnostic worker instrumentation was removed by the clean build. No diagnostic app or microphone stream is left running.
+
+Manual checks
+1. Restart the normal Gestura dev app to load the new worklet. Resume input and leave gaze-only off. Click Start listening; verify Microphone live and the overlay mic indicator remain present for more than five seconds.
+2. Say “open phrase palette” or “開短語選單”, then stop speaking briefly. Verify a final transcript and the phrase palette opening. This repair verifies capture/transport, not human utterance accuracy or end-to-end transcript latency.
+3. Verify Stop listening, global pause, and gaze-only mode stop microphone capture; resume must require explicitly starting listening again. Confirm repeated start/stop and a fresh permission-denied attempt fail closed.
+4. Windows microphone/AudioWorklet-to-utility runtime acceptance remains pending. Unit tests are portable, but the live probe ran only on macOS.
+5. The existing generic speech error still does not distinguish every permission, device, worklet or recognition failure; more detailed validated error categories remain a follow-up.
+
+Changed files
+- apps/desktop/src/renderer/speech/worklet.ts
+- apps/desktop/src/renderer/speech/worklet.test.ts
+- docs/PROGRESS.md
+
+Suggested commit message: fix(P3.1): clone audio packets for Electron speech transport
+
+## 2026-10-18 — P2.4 repair: explain blink rejection and native click dispatch
+
+Approved scope: add live eye state, timing and rejection feedback, distinguish detected gestures from native click calls, and add regression tests after the human showed pointer enabled/blink mode active but reported no click.
+
+Changes
+- Added strict zod contracts for gesture detection and dispatch diagnostics on the existing gestures:state channel. No new preload methods or channels. Diagnostics contain only derived eye states, timing, calibrated thresholds, reasons and in-memory session counters; no media, persistent usage logs or network traffic.
+- GestureEngine now exposes an observational snapshot: each eye's hysteresis state, waiting/ready/tracking/accepted/rejected phase, closure duration, configured limits and a reason. Reasons cover missing/uncertain eye signal, eyes not reopened, missing face, excessive speed, speech/mouth movement, short/long closure, unsynchronised closure, reclosing, cooldown, dragging and the unmapped right-eye wink. The last completed attempt remains visible between frames. Thresholds, timing, gesture events and click safety conditions are unchanged.
+- PointerController counts detected click events separately from successful native-call returns, and identifies Gestura overlay interception, reserved targets, stopped native calls and native exceptions. Native failure still disables pointer control. “Sent” explicitly means the native call returned, not an OS delivery receipt.
+- Control window has Blink feedback directly under the click-mode buttons: open/closed/unknown states, duration, actual thresholds, rejection reason, detected/sent counters and last dispatch result. Paused, pointer-off, replay and non-blink modes get explicit messages. Existing light-green/system-font style and controls are retained; no new assets, animation or controls were introduced.
+- This exposes the next failing stage; no live blink root cause is yet established from a single static screenshot. In particular, no thresholds were relaxed to make a test pass, and no claim of repaired real-world click delivery is made.
+
+Validation
+- pnpm verify: PASS, zero lint warnings, all workspace typechecks; 562 tests passed and 6 existing tests skipped, across 116 passing files and 1 skipped file.
+- Desktop production build: PASS, with the existing third-party Rollup annotation warnings.
+- Pure tests cover accepted long blinks and left winks, short/long rejection, movement/speech suppression, live hysteresis/calibrated limits, initial closed eyes, missing face, off mode, asynchronous closures, reclosing, cooldown and dragging. Existing labelled replay and ActionGate checks still pass.
+- Main tests use the actual NativeBridge with MockNativeInput: accepted long blink -> one left click; left wink -> one right click; overlay interception -> zero OS clicks; stopped bridge -> detected but not sent; native exception -> failed dispatch, zero sent, pointer disabled. Core tests validate IPC and reject malformed diagnostics. Text tests cover every reason without promising OS delivery.
+- No actual OS click, camera inspection, microphone capture or provider call was performed in this step. Existing uncommitted P3.1 speech transport repair was preserved.
+- git diff --check: PASS. No dependency/script/workflow changes and no AGENTS Commands/Hard rules edits. Changes remain uncommitted.
+
+UI checks and limitations
+- Functional/state and build checks: PASS. The existing layout, wrapping, contrast tokens and button sizes are reused. Live readouts use aria-live=off to avoid announcing every camera frame. No claim of visual or keyboard/dwell click-through acceptance: those remain with the human; the prior browser-preview denial was not bypassed.
+- Native counters are per process/session and are not persisted. The current eye state can differ from the last completed gesture; dispatch feedback describes the last detected click request. A natural blink may update the last-attempt rejection to “too short”.
+- macOS and Windows manual acceptance still required; this step's portable unit tests ran on macOS. A successful CGEvent/SendInput call is not proof that a particular application accepted the click.
+
+Manual check
+1. Restart pnpm dev to load the main/schema changes. Start camera tracking, enable pointer control and choose Use blink / left wink. Keep input resumed.
+2. Under Click gestures -> Blink feedback, verify both eyes become open before starting. Blink once, reopen and read the reason plus duration. If an eye stays closed/unknown while physically open, record its displayed state and threshold rather than guessing at a new threshold.
+3. Test a one-second bilateral blink and a half-second left-eye wink on a disposable Finder/TextEdit target outside Gestura controls. Compare detected and sent counters, then inspect the actual OS selection/context menu. Test head movement, talking and an overlong closure to verify rejection remains intact.
+4. Send the Blink feedback panel after a failed attempt. A non-incrementing detected count is a detection issue; a detected count without sent indicates interception/block/failure; both incrementing requires checking OS delivery and target coordinates. Pause/stop/replay must never inject a click.
+
+Changed files
+- packages/core/src/gestures.ts; gestures.test.ts
+- packages/gestures/src/index.ts; gestures.test.ts
+- apps/desktop/src/main/pointer/controller.ts; controller.test.ts
+- apps/desktop/src/main/gestures/overlay.ts
+- apps/desktop/src/renderer/control/DebugPanel.tsx; gesture-feedback.ts; gesture-feedback.test.ts
+- docs/PROGRESS.md
+
+Suggested commit message: feat(P2.4): expose blink rejection and native click diagnostics
+
+## 2026-10-18 — P2.4 repair: release blinks stuck in closed hysteresis
+
+Approved scope: implement the reopening fix after the human reported bilateral blinks still not clicking and the diagnostic screenshot showed both eyes closed past the 1500 ms maximum.
+
+Root cause and changes
+- Found a concrete mismatch in calibration: it sampled Math.min(left, right) to learn a shared “eyes open” threshold, while runtime completion requires both eyes to reopen. The lower-scoring eye could bias the shared threshold below the other eye's resting score. Calibration could also finish a bilateral closure when only one eye had reopened.
+- Calibration now requires Math.max(left, right) <= 0.3 for reopening and learns the shared open threshold from that higher score. Closing still requires both eye scores to reach the closed threshold. This fixes future profiles and does not rewrite the user's saved profile.
+- Current saved profile has calibrated EAR eye-contour baselines. Runtime now uses those existing landmarks to resolve only ambiguous blendshape scores strictly between the calibrated open and closed thresholds. If the calibrated contour clearly indicates an open eye, that eye can reopen/rearm instead of staying latched closed indefinitely. A score at/above the closed threshold is never overridden. Missing/invalid contours, missing baseline or mismatched aspect ratio cannot force reopening.
+- The eyeScores threshold argument is optional for compatibility. Existing missing-score fallback is unchanged. No new settings, dependencies, commands, UI controls, network use or data logging; pause, ActionGate confirmation and click timing/suppression remain unchanged. Earlier uncommitted speech/diagnostics changes were preserved.
+
+Checks
+- New synthetic regression reproduces the relevant values: closed/open thresholds 0.48/0.23, minimum blink 623 ms, and reopened scores 0.28/0.26. With valid calibrated open contours, an 850 ms bilateral closure now emits exactly one left click and rearms; the following open frame emits none. A unilateral left closure with an ambiguous open opposite eye emits one right-click request.
+- Tests verify strong closed scores take precedence, closed contours cannot reopen the state, invalid/missing/aspect-mismatched baselines fail closed, and natural/overlong blinks plus movement/speech suppression still reject clicks. Calibration regression verifies that one eye reopening does not finish the bilateral closure and asymmetric resting scores produce a usable shared open threshold.
+- pnpm verify: PASS, zero lint warnings, all workspace typechecks; 574 tests passed, 6 existing tests skipped, 117 passing files and 1 skipped file. Final Vitest duration 4.83 s.
+- Desktop production build: PASS; existing third-party Rollup annotation warnings only.
+- git diff --check: PASS. No actual camera/mic capture, OS input injection or provider call in this step. No git writes. No saved profile/config was edited.
+
+Manual check and limitations
+1. Restart the desktop dev app to load the main-process gesture bundle. Start camera tracking, enable pointer control and select Use blink / left wink. Input must be resumed. The current saved profile already contains the EAR baseline, so repeating calibration is not required for this user.
+2. With eyes physically open, verify Blink feedback reports open/ready even if raw scores remain between the two thresholds. Close both eyes for about one second and reopen; verify detected/sent counters increment once and the intended ordinary UI target receives the left click. Test the left wink separately.
+3. Keep the existing 623–1500 ms limits: a genuinely overlong closure must still be rejected. The fix does not reinterpret a genuinely strong closed score as open or bypass movement/speech suppression.
+4. Legacy profiles without EAR baselines need recalibration to obtain landmark-assisted reopening and the corrected shared open threshold. Missing/unstable geometry must continue to fail closed.
+5. Real human blink accuracy, false-click rate and OS delivery are not established by these synthetic regressions. macOS/Windows live acceptance is still required; no claim of a completed live click test is made.
+
+Changed files for this fix
+- packages/gestures/src/eyes.ts
+- packages/gestures/src/index.ts
+- packages/gestures/src/reopening.test.ts
+- packages/pointer/src/calibration.ts
+- packages/pointer/src/calibration.test.ts
+- docs/PROGRESS.md
+
+Suggested commit message: fix(P2.4): resolve stuck eye reopening with calibrated landmarks
+
+## 2026-10-18 — P2.4: right-eye wink for right-click (Q7 maintainer change)
+
+Human approved replacing the left-eye right-click gesture with the right eye.
+
+Changes
+- Right-eye-only closure of at least 250 ms now requests a right click on reopening. Left-eye winks emit a wink event/diagnostic but no click. Both-eye long blinks still request left click; dwell, drag, pause, calibrated reopening and ActionGate rules are unchanged.
+- Updated the strict click source to right-wink and the rejection reason to left-wink-unmapped. Updated control labels, instructions, feedback text and the recorder's future wink prompt.
+- Amended Q7 in open-questions.md and current ADR guidance with the maintainer's decision. Original historical P2.1 fixture data and prior progress entries remain intact.
+- Updated only the generated P2.4 synthetic wink segments and matching labels to right-eye winks. Replay now explicitly asserts five right-wink click sources rather than only counting wink events. Native bridge and landmark-assisted reopening regression tests use right-eye closures; left-eye no-click behavior is retained in pure tests.
+
+Validation
+- pnpm verify PASS: zero lint warnings, all workspace typechecks, 575 tests passed / 6 existing tests skipped, 117 passing files / 1 skipped file; Vitest 4.75 s.
+- Synthetic P2.4 replay PASS: 5/5 long-blink left-click requests, 5/5 right-wink right-click requests, zero natural/reading/talking clicks. These are synthetic assertions, not measured human accuracy.
+- Desktop production build PASS; existing third-party Rollup annotation warnings only. git diff --check PASS.
+- No native changes, dependencies, scripts, workflow or AGENTS edits. Previous uncommitted fixes were preserved. No actual camera/mic input, OS clicking or provider requests in this step; all changes remain uncommitted.
+
+Manual checks (macOS and Windows)
+1. Quit/restart the desktop app with pnpm dev. Start tracking, enable pointer control and select Use blink / right wink; verify blink mode rather than dwell mode.
+2. Move to a disposable target outside the Gestura controls. Keep the left eye open, close only the right eye for about half a second, then reopen; verify one right-click/context menu and detected/sent feedback. Left-eye wink must not send a click.
+3. Verify one-second bilateral blink still left-clicks, ordinary short blinks do nothing, and pause/replay/speech/movement suppression and generated-output confirmation safeguards still work.
+4. Live human gesture/OS delivery and Windows acceptance remain pending. No visual acceptance is claimed for the label-only UI update; existing layout, focus, targets and style are retained.
+
+Changed files for this change
+- packages/core/src/gestures.ts; gestures.test.ts
+- packages/gestures/src/index.ts; gestures.test.ts; reopening.test.ts
+- apps/desktop/src/main/pointer/controller.test.ts
+- apps/desktop/src/renderer/control/DebugPanel.tsx; gesture-feedback.ts
+- tools/replay/src/index.ts; gesture-fixtures.test.ts
+- fixtures/landmarks/p2.4-gestures-synthetic.jsonl; .labels.json; .md
+- docs/open-questions.md; decisions/0007-click-gestures.md; decisions/0004-local-face-tracking.md; PROGRESS.md
+
+Suggested commit message: feat(P2.4): map right-eye wink to right-click

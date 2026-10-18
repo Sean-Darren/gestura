@@ -7,7 +7,7 @@ export const GestureEventSchema = z.discriminatedUnion('kind', [
     .object({
       kind: z.literal('click'),
       button: z.enum(['left', 'right']),
-      source: z.enum(['long-blink', 'left-wink', 'dwell']),
+      source: z.enum(['long-blink', 'right-wink', 'dwell']),
       ...point
     })
     .strict(),
@@ -32,8 +32,50 @@ export const EarBaselineSchema = z
   .refine((v) => v.openRatio > v.closedRatio, 'EAR hysteresis needs an open/closed gap')
 export type EarBaseline = z.infer<typeof EarBaselineSchema>
 export const GestureControlSchema = z.object({ mode: z.enum(['off', 'blink', 'dwell']) }).strict()
+export const GestureDetectionSchema = z
+  .object({
+    left: z.enum(['unknown', 'open', 'closed']),
+    right: z.enum(['unknown', 'open', 'closed']),
+    phase: z.enum(['waiting', 'ready', 'tracking', 'accepted', 'rejected']),
+    reason: z.enum([
+      'ready',
+      'mode-off',
+      'eyes-not-open',
+      'face-lost',
+      'invalid-eye-signal',
+      'moving',
+      'speech',
+      'too-short',
+      'too-long',
+      'unsynchronised',
+      'reclosed',
+      'cooldown',
+      'left-wink-unmapped',
+      'dragging',
+      'accepted'
+    ]),
+    durationMs: finite.nonnegative(),
+    minLongBlinkMs: finite.nonnegative(),
+    maxLongBlinkMs: finite.nonnegative(),
+    winkMinMs: finite.nonnegative(),
+    closedScore: finite.min(0).max(1),
+    openScore: finite.min(0).max(1)
+  })
+  .strict()
+export type GestureDetection = z.infer<typeof GestureDetectionSchema>
+export const GestureDiagnosticsSchema = z
+  .object({
+    detection: GestureDetectionSchema,
+    detectedClicks: z.number().int().nonnegative(),
+    sentClicks: z.number().int().nonnegative(),
+    delivery: z.enum(['none', 'sent', 'blocked', 'overlay', 'failed']),
+    deliveryMessage: z.string().max(500)
+  })
+  .strict()
+export type GestureDiagnostics = z.infer<typeof GestureDiagnosticsSchema>
 export const OverlayStateSchema = z
   .object({
+    gestureDiagnostics: GestureDiagnosticsSchema.optional(),
     snap: SnapBoundsSchema.nullable().default(null),
     mode: z.enum(['off', 'blink', 'dwell']),
     paused: z.boolean(),

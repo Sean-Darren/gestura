@@ -47,7 +47,9 @@ class CaptureProcessor extends AudioWorkletProcessor {
         }
         const packet = { seq: this.seq, tCapture: (this.origin ?? 0) + this.seq * 32, samples }
         this.seq++
-        this.destination.postMessage(packet, [samples.buffer])
+        // Electron's utility-process port cannot decode this transferred backing buffer.
+        // Clone each 2 KiB packet instead; audio still travels directly to speech.
+        this.destination.postMessage(packet)
       })
     }
   }

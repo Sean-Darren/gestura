@@ -71,7 +71,7 @@ Main's live renderer source and fixture player both feed VisionController.frames
 No pointer, gesture recognizer, speech capture, or input injection is added here.
 
 Record scripted session is an explicit local opt-in: eight five-second prompts
-cover four screen corners, long blink, left wink, reading, and held mouth opening.
+cover four screen corners, long blink, right wink (Q7 amended 2026-10-18), reading, and held mouth opening.
 The reading prompt requests no microphone and inserts no dictated text. Labels
 store actual prompt start/end times, extending the interval across pause. Only
 derived FaceFrames are stored. Automatic completion or Save recording now writes
