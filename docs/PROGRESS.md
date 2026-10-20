@@ -1536,3 +1536,30 @@ Changed files for this change
 - docs/open-questions.md; decisions/0007-click-gestures.md; decisions/0004-local-face-tracking.md; PROGRESS.md
 
 Suggested commit message: feat(P2.4): map right-eye wink to right-click
+
+## 2026-10-20 — README: team, setup and usage documentation
+
+Status: done (documentation). Platforms checked: repository inspection and automated verification on macOS; fresh-install and Windows live checks pending.
+
+What changed
+- Replaced the electron-vite template README with Gestura documentation for Keyboard Cursor Team - 1057: functionality, architecture, prerequisites, macOS/Windows development setup, permissions, first-run calibration and daily use.
+- Documented the current right-eye-wink mapping, separate camera/pointer/click/listening controls, pause shortcuts, explicit output confirmation, OpenRouter environment setup and optional Excel/VS Code integrations.
+- Added troubleshooting for the observed native-input, eye classification and speech startup failures. Described remaining prototype limitations, privacy controls, intended impact and evaluation targets without claiming measured human outcomes.
+- Removed nonexistent root installer commands and documented that Excel convenience helpers currently use macOS paths. Distinguished mock/transport benchmark results from real-provider quality evidence. No application code, dependencies, scripts, workflow or AGENTS rules changed.
+
+Validation
+- pnpm verify PASS: lint with zero warnings, all workspace typechecks, 575 tests passed / 6 existing tests skipped; 117 passing test files / 1 skipped; Vitest duration 5.21 s.
+- Initial sandboxed verification could not bind localhost (17 bridge tests failed with EPERM); the approved retry outside the sandbox passed.
+- All 14 local Markdown links resolve, all 15 documented root script names exist, and git diff --check passes.
+- No camera/microphone capture, native cursor injection, model download, dependency installation or paid provider request performed for this documentation task. Changes are uncommitted.
+
+Manual checks
+1. Review README team name, scope, impact targets and prototype limitations for submission accuracy.
+2. Follow the setup instructions on a fresh macOS checkout and a Windows 11 x64 teammate's machine; confirm toolchains, permissions, calibration, native movement and both click modes.
+3. Test microphone-live status and an explicitly confirmed disposable GenAI insertion; never include API keys or pairing tokens in screenshots or reports.
+
+Changed files
+- README.md
+- docs/PROGRESS.md
+
+Suggested commit message: docs(README): document team, setup, usage and intended impact
