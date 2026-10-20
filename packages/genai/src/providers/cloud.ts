@@ -1,6 +1,23 @@
 import { tokenUsage } from '../index'
 import type { Provider, GenerateRequest, GenerateResponse } from '../index'
 
+export type CloudProviderFailure =
+  | 'configuration'
+  | 'authentication'
+  | 'access'
+  | 'rate-limit'
+  | 'request'
+  | 'timeout'
+  | 'network'
+  | 'response'
+
+export class CloudProviderError extends Error {
+  readonly name = 'CloudProviderError'
+  constructor(readonly failure: CloudProviderFailure) {
+    super('Cloud provider request failed')
+  }
+}
+
 export interface CloudProviderOptions {
   host: string
   apiKey: string
@@ -68,16 +85,14 @@ export class CloudProvider implements Provider {
         signal: request.signal ?? null
       })
 
-      if (!response.ok) {
-        throw new Error(`Cloud provider returned HTTP ${response.status}`)
-      }
+      if (!response.ok) throw new CloudProviderError(failureForStatus(response.status))
 
       const data = (await response.json()) as {
         choices: Array<{ message: { content: string } }>
         usage?: { prompt_tokens?: unknown; completion_tokens?: unknown }
       }
       const content = data.choices?.[0]?.message?.content
-      if (!content) throw new Error('Cloud provider returned empty response')
+      if (!content) throw new CloudProviderError('response')
 
       const parsed = JSON.parse(content) as unknown
       const usage = tokenUsage(data.usage?.prompt_tokens, data.usage?.completion_tokens)
@@ -89,8 +104,20 @@ export class CloudProvider implements Provider {
         durationMs: this.perf.now() - start
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') throw err
-      throw new Error('Cloud provider request failed')
+      if (err instanceof DOMException && err.name === 'AbortError')
+        throw new CloudProviderError('timeout')
+      if (err instanceof CloudProviderError) throw err
+      if (err instanceof SyntaxError) throw new CloudProviderError('response')
+      if (err instanceof TypeError) throw new CloudProviderError('network')
+      throw new CloudProviderError('request')
     }
   }
+}
+
+function failureForStatus(status: number): CloudProviderFailure {
+  if (status === 401) return 'authentication'
+  if (status === 403) return 'access'
+  if (status === 429) return 'rate-limit'
+  if (status >= 400 && status < 500) return 'request'
+  return 'response'
 }

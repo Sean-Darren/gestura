@@ -1,4 +1,5 @@
 import { FormulaLoopStateSchema, reviewTextPages, CodeResponseSchema } from '@gestura/core'
+import { CloudProviderError } from '@gestura/genai'
 import type {
   FormulaLoopState,
   CodeSnapshot,
@@ -146,12 +147,28 @@ export class CodeController {
       abort = new AbortController()
     this.abort = abort
     this.emit()
-    this.job = this.run(utterance, revision, abort.signal).catch(() => {
+    this.job = this.run(utterance, revision, abort.signal).catch((error: unknown) => {
       if (this.current(revision))
         this.cancel(
-          'Code proposal unavailable. Check VS Code pairing, document changes and your provider, then retry.'
+          `Code proposal unavailable. ${this.providerDiagnostic(error)}`
         )
     })
+  }
+
+  private providerDiagnostic(error: unknown): string {
+    if (!(error instanceof CloudProviderError))
+      return 'Check VS Code pairing, document changes and your provider, then retry.'
+    const detail: Record<typeof error.failure, string> = {
+      configuration: 'Check the provider configuration, then retry.',
+      authentication: 'The provider rejected the API key (HTTP 401). Check OPENROUTER_API_KEY.',
+      access: 'The provider rejected access to the model or endpoint (HTTP 403).',
+      'rate-limit': 'The provider rate-limited the request (HTTP 429). Try again later.',
+      request: 'The provider rejected the request. Check the model and structured-output support.',
+      timeout: 'The provider did not respond before the timeout. Try again.',
+      network: 'The provider could not be reached. Check your network connection.',
+      response: 'The provider returned an invalid or empty response.'
+    }
+    return detail[error.failure]
   }
   private current(revision: number): boolean {
     return revision === this.revision && !this.options.pause.paused

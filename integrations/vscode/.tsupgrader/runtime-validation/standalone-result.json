@@ -1,0 +1,130 @@
+{
+  "planHash": "5ef90f23cf5fde9d0341d2ba58b04753fc43b9557086228d0307e8ca717073ba",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-10-18T14:48:39.5645771Z",
+  "retryCount": 3,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "typecheck",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "$ tsc --noEmit -p tsconfig.json\r\n",
+        "durationMs": 2935
+      },
+      {
+        "name": "extension-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "$ node build.mjs\r\n",
+        "durationMs": 524
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "$ vitest run --config vitest.config.ts\r\n\r\n RUN  v4.1.11 C:/Users/ASUS/Documents/GitHub/gestura/integrations/vscode\r\n\r\n\r\n Test Files  2 passed (2)\r\n      Tests  11 passed (11)\r\n   Start at  22:48:34\r\n   Duration  1.78s (transform 339ms, setup 0ms, import 615ms, tests 31ms, environment 0ms)\r\n\r\n",
+        "durationMs": 2833,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "output_banner",
+          "testsTotal": 11,
+          "testsPassed": 11,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": false
+        }
+      },
+      {
+        "name": "vsix-package",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": " WARNING  A \u0027repository\u0027 field is missing from the \u0027package.json\u0027 manifest file.\r\nUse --allow-missing-repository to bypass.\r\n WARNING  LICENSE, LICENSE.md, or LICENSE.txt not found\r\n WARNING  Neither a .vscodeignore file nor a \u0022files\u0022 property in package.json was found. To ensure only necessary files are included in your extension, add a .vscodeignore file or specify the \u0022files\u0022 property in package.json. More info: https://aka.ms/vscode-vscodeignore\r\n\r\n INFO  Files included in the VSIX:\r\ngestura-test.vsix\r\n\u251C\u2500 [Content_Types].xml \r\n\u251C\u2500 extension.vsixmanifest \r\n\u2514\u2500 extension/\r\n   \u251C\u2500 extension.js [932.69 KB]\r\n   \u2514\u2500 package.json [0.58 KB]\r\n\r\nThe file extension/extension.js is large (932.69 KB)\r\n\r\n DONE  Packaged: gestura-test.vsix (4 files, 152.83 KB)\r\nDone in 3.4s using pnpm v12.11.2\r\n",
+        "durationMs": 3663
+      }
+    ],
+    "executions": [
+      {
+        "source": "typecheck",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\corepack.CMD",
+        "args": [
+          "pnpm",
+          "run",
+          "typecheck"
+        ],
+        "cwd": "C:\\Users\\ASUS\\Documents\\GitHub\\gestura\\integrations\\vscode",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "extension-build",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\corepack.CMD",
+        "args": [
+          "pnpm",
+          "run",
+          "build"
+        ],
+        "cwd": "C:\\Users\\ASUS\\Documents\\GitHub\\gestura\\integrations\\vscode",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\corepack.CMD",
+        "args": [
+          "pnpm",
+          "run",
+          "test"
+        ],
+        "cwd": "C:\\Users\\ASUS\\Documents\\GitHub\\gestura\\integrations\\vscode",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "vsix-package",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\corepack.CMD",
+        "args": [
+          "pnpm",
+          "dlx",
+          "@vscode/vsce@3.6.0",
+          "package",
+          "--no-dependencies",
+          "--out",
+          "gestura-test.vsix"
+        ],
+        "cwd": "C:\\Users\\ASUS\\Documents\\GitHub\\gestura\\integrations\\vscode\\dist",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

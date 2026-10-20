@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { CloudProvider } from './cloud'
+import { CloudProvider, CloudProviderError } from './cloud'
 
 it('uses the OpenRouter endpoint with strict structured output and privacy routing', async () => {
   const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
@@ -30,7 +30,43 @@ it('does not leak raw provider errors or authentication headers', async () => {
     model: 'm',
     fetch
   })
-  await expect(provider.generate({ messages: [], jsonSchema: {} })).rejects.toThrow(
-    'Cloud provider request failed'
+  await expect(provider.generate({ messages: [], jsonSchema: {} })).rejects.toMatchObject({
+    failure: 'authentication',
+    message: 'Cloud provider request failed'
+  })
+})
+
+it.each([
+  [403, 'access'],
+  [429, 'rate-limit'],
+  [400, 'request'],
+  [500, 'response']
+] as const)('classifies HTTP %d without exposing provider details', async (status, failure) => {
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValue(new Response('private provider body', { status }))
+  const provider = new CloudProvider({
+    host: 'https://openrouter.ai/api',
+    apiKey: 'fake-key',
+    model: 'm',
+    fetch
+  })
+  await expect(provider.generate({ messages: [], jsonSchema: {} })).rejects.toBeInstanceOf(
+    CloudProviderError
   )
+  await expect(provider.generate({ messages: [], jsonSchema: {} })).rejects.toMatchObject({
+    failure
+  })
+})
+
+it('classifies unreachable providers as network failures', async () => {
+  const provider = new CloudProvider({
+    host: 'https://openrouter.ai/api',
+    apiKey: 'fake-key',
+    model: 'm',
+    fetch: vi.fn<typeof globalThis.fetch>().mockRejectedValue(new TypeError('private network error'))
+  })
+  await expect(provider.generate({ messages: [], jsonSchema: {} })).rejects.toMatchObject({
+    failure: 'network'
+  })
 })
