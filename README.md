@@ -4,7 +4,7 @@ Hands-free desktop input using head movement, eye gestures and optional Cantones
 
 ## Team name
 
-**Keyboard Cursor Team - 1057**
+**Keyboard Cursor - 1057**
 
 ## What the product does
 
