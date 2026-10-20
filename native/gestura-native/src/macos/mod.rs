@@ -32,7 +32,7 @@ pub struct PlatformInput {
 }
 impl PlatformInput {
     pub fn new() -> InputResult<Self> {
-        let source = CGEventSource::new(CGEventSourceStateID::Private)
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
             .map_err(|()| "Could not create CGEvent source")?;
         Ok(Self {
             source,

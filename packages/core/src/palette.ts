@@ -79,6 +79,7 @@ export const PaletteStateSchema = z
     open: z.boolean(),
     paused: z.boolean(),
     dictating: z.boolean(),
+    formulaListening: z.boolean().default(false),
     busy: z.boolean(),
     formula: FormulaLoopStateSchema.nullable().default(null),
     page: z.number().int().nonnegative(),
@@ -88,13 +89,36 @@ export const PaletteStateSchema = z
     composer: z.enum(COMPOSE_PURPOSES).nullable(),
     draft: DraftTextSchema,
     pending: z
-      .object({
-        id: z.string().uuid(),
-        text: DraftTextSchema,
-        target: z.string(),
-        kind: z.enum(['dictation', 'type-text', 'formula'])
-      })
-      .strict()
+      .discriminatedUnion('kind', [
+        z
+          .object({
+            kind: z.literal('dictation'),
+            id: z.string().uuid(),
+            text: DraftTextSchema,
+            target: z.string()
+          })
+          .strict(),
+        z
+          .object({
+            kind: z.literal('type-text'),
+            id: z.string().uuid(),
+            text: DraftTextSchema,
+            target: z.string()
+          })
+          .strict(),
+        z
+          .object({
+            kind: z.literal('formula'),
+            id: z.string().uuid(),
+            formula: z.string().min(1).max(16000),
+            explanation: z.string().max(500),
+            references: z.array(z.string()),
+            targetCell: z.string(),
+            correctionCount: z.number().int().nonnegative(),
+            target: z.string()
+          })
+          .strict()
+      ])
       .nullable(),
     reviewText: z.string(),
     holdProgress: z.number().min(0).max(1),

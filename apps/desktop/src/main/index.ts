@@ -18,7 +18,7 @@ import { PaletteStore } from './input/store'
 import { createNativeUiQueries } from './native/ui-elements'
 import { LISTENING_HOTKEY } from '@gestura/core'
 import { SpeechTransport } from './speech/transport'
-import { allowSpeechMicrophone } from './speech/permissions'
+import { allowSpeechMicrophone, isSpeechRendererUrl } from './speech/permissions'
 import { SnapStore } from './snapping/store'
 import coverageData from 'virtual:gestura-ui-coverage'
 import { PoorCoverageSchema } from '@gestura/core'
@@ -195,6 +195,17 @@ function createWindow(
 
 const configuredLocalOrigin = localRendererOrigin(process.env.ELECTRON_RENDERER_URL)
 const configuredLocalOrigins = configuredLocalOrigin ? [configuredLocalOrigin] : []
+
+function isSpeechPermissionTarget(
+  contents: Electron.WebContents | null,
+  requestingUrl: string | undefined,
+  captureId: number | undefined
+): boolean {
+  if (requestingUrl && isSpeechRendererUrl(requestingUrl)) return true
+  const contentsUrl = contents?.getURL()
+  if (contentsUrl && isSpeechRendererUrl(contentsUrl)) return true
+  return contents?.id !== undefined && contents.id === captureId
+}
 
 function createControlWindow(): BrowserWindow {
   controlWindow = createWindow('control', {
@@ -482,10 +493,24 @@ app.whenReady().then(async () => {
   app.setAccessibilitySupportEnabled(false)
   const config = withOpenRouter(
     loadAppConfig(join(app.getPath('userData'), 'config.json')),
-    loadOpenRouterEnvironment(app.isPackaged ? undefined : join(__dirname, '../../../../.env'))
+    loadOpenRouterEnvironment(
+      app.isPackaged
+        ? undefined
+        : (process.env.GESTURA_ENV_PATH ?? join(__dirname, '../../../../.env'))
+    )
   )
   const calibrationStore = new CalibrationStore(app.getPath('userData'))
   const calibrationProfile = await calibrationStore.load()
+  // Check Accessibility permission early so the user sees a clear prompt.
+  if (!nativeInput.hasInputPermission()) {
+    console.error(
+      '[startup] Accessibility permission NOT granted.',
+      'Open System Settings → Privacy & Security → Accessibility and enable Gestura.',
+      'Without this, cursor control, clicks, and text input will fail silently.'
+    )
+    // Prompt macOS to show the permission dialog; no-op if already granted.
+    nativeInput.requestInputPermission()
+  }
   installNetworkPolicies(config)
   protocol.handle('app', (request) =>
     readVisionAsset(
@@ -496,13 +521,19 @@ app.whenReady().then(async () => {
     )
   )
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const speechRequest = isSpeechPermissionTarget(
+      contents,
+      'requestingUrl' in details ? details.requestingUrl : undefined,
+      speechTransport?.captureId
+    )
     callback(
       allowSpeechMicrophone(
         contents.id,
         speechTransport?.captureId,
         permission,
         'mediaTypes' in details ? details.mediaTypes : undefined,
-        speechController?.state.state === 'starting'
+        speechController?.state.state === 'starting',
+        speechRequest
       ) ||
         allowVisionCamera(
           contents.id,
@@ -512,14 +543,20 @@ app.whenReady().then(async () => {
         )
     )
   })
-  session.defaultSession.setPermissionCheckHandler(
-    (contents, permission, _origin, details) =>
+  session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => {
+    const speechRequest = isSpeechPermissionTarget(
+      contents,
+      details.requestingUrl,
+      speechTransport?.captureId
+    )
+    return (
       allowSpeechMicrophone(
         contents?.id,
         speechTransport?.captureId,
         permission,
-        details.mediaType === 'audio' ? ['audio'] : [],
-        ['starting', 'listening'].includes(speechController?.state.state ?? '')
+        details.mediaType === 'video' ? ['video'] : ['audio'],
+        ['starting', 'listening'].includes(speechController?.state.state ?? ''),
+        speechRequest
       ) ||
       allowVisionCamera(
         contents?.id,
@@ -527,7 +564,8 @@ app.whenReady().then(async () => {
         permission,
         details.mediaType === 'video' ? ['video'] : []
       )
-  )
+    )
+  })
   const sendControl = <
     Channel extends
       | 'vision:status'
@@ -858,24 +896,24 @@ app.whenReady().then(async () => {
         fetch: providerFetch
       })
     : undefined
-  let formulaRouter: FormulaRouter | undefined
-  if (cloudProvider) {
-    formulaRouter = new FormulaRouter({
-      cloud: cloudProvider,
-      ...(config.genai.localProvider.enabled && config.genai.localProvider.model
-        ? {
-            local: new LocalProvider({
-              host: providerUrl(config.genai.localProvider.host, true),
-              model: config.genai.localProvider.model,
-              fetch: providerFetch
-            })
-          }
-        : {}),
-      timeoutMs: config.genai.formula.timeoutMs,
-      maxRetries: config.genai.formula.maxRetries,
-      maxHistory: config.genai.formula.maxHistory
-    })
-  }
+  const localProvider =
+    config.genai.localProvider.enabled && config.genai.localProvider.model
+      ? new LocalProvider({
+          host: providerUrl(config.genai.localProvider.host, true),
+          model: config.genai.localProvider.model,
+          fetch: providerFetch
+        })
+      : undefined
+  const formulaRouter =
+    cloudProvider || localProvider
+      ? new FormulaRouter({
+          ...(cloudProvider ? { cloud: cloudProvider } : {}),
+          ...(localProvider ? { local: localProvider } : {}),
+          timeoutMs: config.genai.formula.timeoutMs,
+          maxRetries: config.genai.formula.maxRetries,
+          maxHistory: config.genai.formula.maxHistory
+        })
+      : undefined
   inputController = new InputController({
     pause,
     bridge: nativeInput,

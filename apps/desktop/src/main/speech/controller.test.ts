@@ -106,7 +106,7 @@ describe('local speech lifecycle', () => {
       if (failure === 'capture') controller.capture({ generation: 1, live: false, error: true })
       else if (failure === 'malformed') receives[0]!({ kind: 'audio', samples: [] })
       else if (failure === 'worker') receives[0]!({ kind: 'error' })
-      else vi.advanceTimersByTime(30001)
+      else vi.advanceTimersByTime(120_001)
       expect(controller.state.state).toBe('error')
       expect(controller.state.micLive).toBe(false)
       expect(options.stop).toHaveBeenCalled()

@@ -683,6 +683,11 @@ main {
   max-height: 74px;
   padding: 8px 0;
 }
+.formula-hold-progress {
+  width: 100%;
+  height: 6px;
+  accent-color: #24563d;
+}
 .palette-status {
   position: fixed;
   bottom: 4px;
