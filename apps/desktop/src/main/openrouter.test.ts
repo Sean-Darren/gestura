@@ -17,7 +17,7 @@ it('enables only OpenRouter in memory with the selected default model', () => {
     host: 'https://openrouter.ai/api',
     model: 'openai/gpt-4.1-mini'
   })
-  expect(config.network.allowlist).toEqual(['openrouter.ai'])
+  expect(config.network.allowlist).toEqual([...DEFAULT_CONFIG.network.allowlist, 'openrouter.ai'])
   expect(DEFAULT_CONFIG.genai.cloudProvider).toBeUndefined()
   expect(config.excel.shareSampleValues).toBe(false)
 })

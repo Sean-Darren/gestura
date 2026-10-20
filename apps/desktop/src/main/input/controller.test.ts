@@ -202,14 +202,25 @@ describe('dictation and gaze-only controller', () => {
     const excelBridge = {
       getContext: vi.fn(async () => ({
         sheetName: 'Sheet1',
-        selectionAddress: 'B1',
-        activeCell: 'B1',
+        sheetId: 'sheet-1',
+        sessionId: 'b2c2d3e4-1234-4234-8234-123456789abc',
+        selectionAddress: 'B11',
+        activeCell: 'B11',
         headers: ['Amount'],
         columnTypes: { A: 'text', B: 'number' },
-        usedRangeAddress: 'A1:B10',
+        usedRangeAddress: 'A1:B11',
         samples: []
       })),
       writeFormula,
+      prepareFormula: vi.fn(async () => ({
+        token: 'a2c2d3e4-1234-4234-8234-123456789abc',
+        sessionId: 'b2c2d3e4-1234-4234-8234-123456789abc',
+        sheetId: 'sheet-1',
+        target: 'B11',
+        before: { formula: null, value: null }
+      })),
+      highlight: vi.fn(async () => true),
+      restoreCell: vi.fn(async () => true),
       selectRange: vi.fn(() => true)
     } as unknown as ExcelBridge
     const formulaRouter = new FormulaRouter({
@@ -246,12 +257,13 @@ describe('dictation and gaze-only controller', () => {
 
     expect(() => createIpcEnvelope('palette:state', s.controller.state)).not.toThrow()
     expect(s.controller.state.formulaListening).toBe(false)
-    expect(s.controller.state.pending?.kind).toBe('formula')
-    expect(s.controller.state.reviewPages).toBe(1)
-    expect(s.controller.state.reviewText).toContain('=SUM(B2:B10)')
+    expect(s.controller.state.formula?.phase).toBe('proposed')
+    expect(s.controller.state.formula?.formula).toBe('=SUM(B2:B10)')
     expect(writeFormula).not.toHaveBeenCalled()
 
-    await s.shown()
+    while (s.controller.state.formula!.reviewPage < s.controller.state.formula!.reviewPages - 1)
+      await s.controller.control({ operation: 'activate', id: 'formula:next' })
+    await s.controller.control({ operation: 'shown', id: s.controller.state.formula!.proposalId! })
     await s.transcript('confirm')
 
     expect(writeFormula).toHaveBeenCalledTimes(1)

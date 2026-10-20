@@ -44,7 +44,7 @@ export class CloudProvider implements Provider {
     try {
       const body = JSON.stringify({
         model: this.model,
-        ...(new URL(this.host).origin === 'https://openrouter.ai'
+        ...(new URL(this.chatCompletionsUrl()).origin === 'https://openrouter.ai'
           ? { provider: { require_parameters: true, data_collection: 'deny', zdr: true } }
           : {}),
         messages: request.messages,

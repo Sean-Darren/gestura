@@ -5,97 +5,29 @@ import {
   GenaiCloudProviderConfigSchema,
   NetworkConfigSchema
 } from '@gestura/core/config'
-import { AppConfigSchema, DEFAULT_CONFIG, type AppConfig } from '@gestura/core/config'
+import { AppConfigSchema, type AppConfig } from '@gestura/core/config'
 
-/**
- * Read GenAI cloud-provider settings from environment variables.
- * Supported: OPENROUTER_API_KEY + OPENROUTER_MODEL → openrouter.ai
- */
-export function readEnvFile(path: string | undefined): Record<string, string> {
+export function readEnvFile(path: string | undefined): Record<string, string | undefined> {
   if (!path) return {}
   try {
-    const text = readFileSync(path, 'utf8')
-    const values: Record<string, string> = {}
-    for (const rawLine of text.split(/\r?\n/)) {
-      const line = rawLine.trim()
-      if (!line || line.startsWith('#')) continue
-      const separator = line.indexOf('=')
-      if (separator <= 0) continue
-      const key = line.slice(0, separator).trim()
-      let value = line.slice(separator + 1).trim()
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1)
-      }
-      if (key) values[key] = value
-    }
-    return values
-  } catch {
+    return parseEnv(readFileSync(path, 'utf8'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+      throw new Error('Unable to read local OpenRouter environment file')
     return {}
   }
 }
 
-type EnvCloudProvider = NonNullable<AppConfig['genai']['cloudProvider']> & {
-  allowlistHost: string
-}
-
-function envCloudProvider(env: Record<string, string | undefined>): EnvCloudProvider | undefined {
-  const key = env.OPENROUTER_API_KEY
-  const model = env.OPENROUTER_MODEL
-  if (!key || !model) return undefined
-  const host = env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1'
-  const allowlistHost = (() => {
-    try {
-      return new URL(host).host
-    } catch {
-      return 'openrouter.ai'
-    }
-  })()
-  return {
-    apiKey: key,
-    host,
-    model,
-    allowlistHost
-  }
-}
-
 export function loadAppConfig(path: string, envPath?: string): AppConfig {
-  const envFile = readEnvFile(envPath)
-  const env: Record<string, string | undefined> = { ...process.env, ...envFile }
-  const envOverride = envCloudProvider(env)
-  const cloudProvider = envOverride
-    ? {
-        apiKey: envOverride.apiKey,
-        host: envOverride.host,
-        model: envOverride.model
-      }
-    : undefined
-  const allowlistHost = envOverride?.allowlistHost
+  let config: AppConfig
   try {
-    const raw: unknown = JSON.parse(readFileSync(path, 'utf8'))
-    const result = AppConfigSchema.safeParse(raw)
-    const config = result.success ? result.data : DEFAULT_CONFIG
-    if (cloudProvider) {
-      config.genai.cloudProvider = cloudProvider
-      // Ensure the cloud host is in the network allowlist so main-process
-      // fetch calls can reach it.
-      if (allowlistHost && !config.network.allowlist.includes(allowlistHost)) {
-        config.network.allowlist = [...config.network.allowlist, allowlistHost]
-      }
-    }
-    return config
+    const contents: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    const result = AppConfigSchema.safeParse(contents)
+    config = result.success ? result.data : AppConfigSchema.parse({})
   } catch {
-    const config = { ...DEFAULT_CONFIG }
-    if (cloudProvider) {
-      config.genai.cloudProvider = cloudProvider
-      config.network.allowlist = allowlistHost
-        ? [...new Set([...config.network.allowlist, allowlistHost])]
-        : config.network.allowlist
-    }
-    return config
+    config = AppConfigSchema.parse({})
   }
+  return envPath ? withOpenRouter(config, loadOpenRouterEnvironment(envPath)) : config
 }
 
 /** Read development secrets without adding them to child-process environments. */
@@ -111,10 +43,12 @@ export function loadOpenRouterEnvironment(path?: string): Record<string, string 
   }
   const result = {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? file.OPENROUTER_API_KEY,
-    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL ?? file.OPENROUTER_MODEL
+    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL ?? file.OPENROUTER_MODEL,
+    OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL ?? file.OPENROUTER_BASE_URL
   }
   delete process.env.OPENROUTER_API_KEY
   delete process.env.OPENROUTER_MODEL
+  delete process.env.OPENROUTER_BASE_URL
   return result
 }
 
@@ -126,18 +60,20 @@ export function withOpenRouter(
   if (!parsed.success) throw new Error('Invalid OpenRouter environment settings')
   const { OPENROUTER_API_KEY: apiKey, OPENROUTER_MODEL: model } = parsed.data
   if (!apiKey) return config
+  const provider = GenaiCloudProviderConfigSchema.parse({
+    host: environment.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api',
+    apiKey,
+    model
+  })
+  const host = new URL(provider.host).host
   return {
     ...config,
     network: NetworkConfigSchema.parse({
-      allowlist: [...new Set([...config.network.allowlist, 'openrouter.ai'])]
+      allowlist: [...new Set([...config.network.allowlist, host])]
     }),
     genai: {
       ...config.genai,
-      cloudProvider: GenaiCloudProviderConfigSchema.parse({
-        host: 'https://openrouter.ai/api',
-        apiKey,
-        model
-      })
+      cloudProvider: provider
     }
   }
 }
