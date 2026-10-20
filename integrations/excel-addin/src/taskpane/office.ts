@@ -113,6 +113,7 @@ export const officeApi: ExcelOfficeApi = {
     await Excel.run(async (context) => {
       const range = context.workbook.worksheets.getActiveWorksheet().getRange(target)
       range.formulas = [[formula]]
+      range.select()
       await context.sync()
     })
   },

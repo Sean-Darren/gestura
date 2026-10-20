@@ -42,9 +42,9 @@ describe('app config', () => {
     expect(() => UiQueryConfigSchema.parse({ probeRadiusPx: -1 })).toThrow()
   })
 
-  it('defaults network access to an empty allowlist and logging to opt-out', () => {
+  it('defaults network access to localhost Ollama and logging to opt-out', () => {
     expect(DEFAULT_CONFIG).toEqual({
-      network: { allowlist: [] },
+      network: { allowlist: ['127.0.0.1:11434'] },
       logging: { enabled: false },
       pointer: DEFAULT_POINTER_CONFIG,
       pointerProfile: { neutral: { yaw: 0, pitch: 0 } },
@@ -72,7 +72,7 @@ describe('app config', () => {
 
   it('defaults genai with local provider enabled and 8s formula timeout', () => {
     expect(DEFAULT_GENAI_CONFIG).toEqual({
-      localProvider: { host: '127.0.0.1:11434', model: '', enabled: true },
+      localProvider: { host: '127.0.0.1:11434', model: 'llama3.2', enabled: true },
       formula: { timeoutMs: 8000, maxRetries: 1, maxHistory: 20 }
     })
   })

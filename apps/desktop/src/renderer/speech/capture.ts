@@ -57,7 +57,8 @@ export class AudioCapture {
         port.close()
         return
       }
-      if (context.state !== 'running') throw new Error('Audio context could not start')
+      if (context.state !== 'running')
+        throw new Error(`Audio context could not start (state: ${context.state})`)
       const node = new AudioWorkletNode(context, 'gestura-audio')
       this.node = node
       node.port.onmessage = () => {
@@ -78,7 +79,8 @@ export class AudioCapture {
       )
       context.createMediaStreamSource(stream).connect(node)
       node.connect(context.destination)
-    } catch {
+    } catch (error) {
+      console.error('[AudioCapture] start failed:', error)
       port.close()
       if (generation === this.generation) {
         this.stop(generation)

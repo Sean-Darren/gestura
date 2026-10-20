@@ -1563,3 +1563,176 @@ Changed files
 - docs/PROGRESS.md
 
 Suggested commit message: docs(README): document team, setup, usage and intended impact
+
+## P4.2-fix — Formula overlay + speech-first formula request — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- Fixed formula proposals being dropped by IPC validation: `PaletteState.pending` for `kind: 'formula'` now contains the full formula payload (`formula`, `explanation`, `references`, `targetCell`, `correctionCount`, `target`) instead of the text-only dictation shape.
+- Added a formula-specific review source so the confirmation card shows the generated formula, target cell and explanation.
+- Removed eager `ActionGate.markShown`/`shown = true` from the formula path. Formula proposals now become confirmable only after the overlay renders the card and sends the normal `palette:control { operation: 'shown' }` acknowledgement.
+- Made the palette “Formula request” tile speech-first: it starts microphone capture in a dedicated formula-listening mode, accumulates final transcripts across pauses, and submits them to `handleFormulaRequest()` only after a close-then-open mouth hold with the same 1-second visible progress bar as dictation confirmation. Exact “cancel”, “pause”, and “confirm” are still handled as controls while in this mode.
+- Kept gaze-only parity: when gaze-only is on, the formula tile falls back to the existing typed formula composer. Voice users can also choose “Type formula instead”.
+- Added `formulaListening` to `PaletteState` and a dedicated overlay header/status for formula dictation.
+- Moved formula-listening action tiles below the captured formula draft so long utterances are not covered by Cancel/Type controls.
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, and 81 test files / 388 tests passed (6 skipped).
+- `electron-vite build` passed.
+- New/updated controller regression test covers the speech-first formula request path, valid `palette:state` IPC, and confirmation only after overlay acknowledgement.
+
+Known issues / follow-ups
+- Live OpenRouter/Ollama formula generation, Office add-in confirmation, real Excel writes and Windows runtime remain manual checks.
+- Formula dictation is one-shot; clarification follow-ups are not yet re-captured by voice.
+
+Manual checks for the human
+- [ ] With Excel connected and GenAI configured, select the Formula request tile, speak a request such as “formula for sum of column B”, and confirm the overlay switches to formula-listening mode.
+- [ ] Speak in segments with pauses and confirm the request is still accumulating. Close your mouth, then open/hold to finish, and confirm the formula proposal card appears with formula/target/explanation.
+- [ ] While finishing with the mouth hold, confirm the formula progress bar fills for one second before the request is submitted.
+- [ ] Say “confirm” only after the card appears; verify the formula is written. Try confirming before the card appears and confirm nothing is written.
+- [ ] Toggle gaze-only on and confirm the formula tile still opens the typed composer.
+- [ ] Repeat on Windows 11 with a teammate.
+
+Suggested commit message
+feat(P4.2): make formula request speech-first and publish valid formula proposals
+
+
+## P4.2-fix-2 — Read GenAI .env and harden Excel write diagnostics — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- `loadAppConfig` now accepts an optional `.env` path and loads the repo-root
+  `.env` in development (`GESTURA_ENV_PATH` overrides the path). No dotenv
+  dependency was added; the parser handles blank lines, comments and quoted
+  values.
+- OpenRouter env wiring now uses `OPENROUTER_BASE_URL` (default
+  `https://openrouter.ai/api/v1`) and adds only the host portion to
+  `network.allowlist`.
+- `CloudProvider` now normalizes bare hosts to `https://` and correctly appends
+  `/v1/chat/completions` when the configured base already ends in `/v1`.
+  `LocalProvider` now normalizes `127.0.0.1:11434` to
+  `http://127.0.0.1:11434/api/chat`.
+- `ExcelBridge.sendAndWait` logs a local warning when the Excel task pane is not
+  connected, and `InputController.confirm` logs the formula write result. The
+  confirmation path now tells the user to review the whole card if confirmation
+  arrives before the overlay acknowledgement.
+- `pnpm excel:dev` now builds the add-in and sideloads its manifest before
+  starting the app, so the Excel bridge is reconnected after add-in changes.
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, 83 test files / 393 tests passed
+  (6 skipped).
+- `pnpm excel:build` passed.
+- `electron-vite build` passed.
+- Added provider URL tests and `.env` loading tests.
+
+Known issues / follow-ups
+- Real Excel task-pane connection, OpenRouter generation, Office.js write and
+  Windows runtime remain manual checks.
+- The add-in must still be reloaded once after a code change; `pnpm excel:dev`
+  rebuilds and sideloads the manifest, but Excel may need a task-pane reload.
+
+Manual checks for the human
+- [ ] Run `pnpm excel:dev`, open Excel, and confirm the task pane shows
+      “Connected to Gestura.”
+- [ ] Create a small table, run a formula request, confirm with the mouth hold
+      after the card appears, and verify the formula lands in the selected
+      target cell and the cell becomes selected.
+- [ ] If the card has multiple pages, use Next text until the final page before
+      confirming; the new message will say to review the whole card otherwise.
+
+Suggested commit message
+fix(P4.2): load .env GenAI config and normalize provider endpoints for Excel writes
+
+
+## P4.2-fix-3 — Keep the local speech mic alive when Electron checks permissions from another renderer — 2026-10-18
+
+Status: done
+Platforms checked: macOS ☑  Windows ☐
+
+What changed
+- Speech microphone permission checks now identify the dedicated capture page by
+  `requestingUrl` (`.../speech/index.html`) instead of trusting only the
+  `webContents.id` passed to Electron's permission handlers.
+- The speech path no longer logs/denies media checks coming from the vision,
+  control, or overlay windows; those checks now fall through to the camera
+  permission path and do not disturb the live microphone stream.
+- `allowSpeechMicrophone` keeps exact audio-only gating for new media requests,
+  but now accepts `speaker-selection` for the dedicated speech renderer while
+  listening. This covers Electron's extra audio-device permission check without
+  granting microphone or camera access to non-speech windows.
+- The permission-check handler treats `mediaType` `"unknown"` as speech audio,
+  while still rejecting `"video"`. The permission-request handler remains
+  strictly `["audio"]` for media.
+- Added unit coverage for the speech-renderer URL recognizer, mismatched
+  webContents IDs when the request target is verified, and speaker-selection.
+- Added local speech diagnostics for the formula-request no-output path: the
+  worker logs the first accepted audio packet, and the controller logs VAD
+  transitions plus transcript metadata (`lang` and character count only).
+
+Measured checks
+- `pnpm verify`: lint, workspace typecheck, 83 test files / 394 tests passed
+  (6 skipped).
+- `pnpm --filter @gestura/desktop exec electron-vite build` passed.
+
+Known issues / follow-ups
+- Windows runtime remains unverified.
+- This fixes the permission-path microphone kill observed on macOS. If a future
+  run still drops after `state → listening`, capture the new speech-denial
+  reason from the same logs; it should now show the specific check that failed
+  rather than `contentsId 3 !== captureId 4`.
+
+Manual checks for the human
+- [ ] Run `pnpm dev`, start listening, and confirm the mic stays in
+      `Listening locally` instead of turning off immediately.
+- [ ] Confirm the noisy `[speech perm] denied: contentsId 3 !== captureId 4`
+      lines are gone while vision/camera is running.
+- [ ] Start a dictation and a formula request with pauses; confirm transcripts
+      still appear and the Excel formula flow still reaches the confirmation
+      card.
+- [ ] Repeat on Windows 11 with a teammate.
+
+Suggested commit message
+fix(speech): trust the dedicated speech renderer URL in permission checks
+
+## 2026-10-20 — MERGE: reconcile speech and formula changes
+
+Status: resolved file contents; Git index intentionally unchanged. The maintainer approved conflict resolution without committing or pushing.
+
+Changes
+- Resolved all eight unmerged files. Kept the newer FormulaController/CodeController/PlainTextController confirmation, correction, snapshot undo, pause, cancellation and review-page safeguards; routed the incoming speech-first formula composer through that controller instead of restoring the obsolete direct-write path.
+- Combined optional cloud/local formula routing with AbortSignal propagation. Retained incoming speech transport/permission changes and provider URL normalization; fixed bare-host normalization before the cloud privacy check.
+- Kept guarded focused-field native typing, single-client/revision-bound Excel operations and structured-cloned worklet packets. Retained the existing Excel setup helper in excel:dev.
+- Reconciled .env loading with validated configuration, shell-variable precedence and removal of secrets from child-process environments. Avoided mutating shared default config objects. Adjusted the incoming formula flow test to exercise snapshot preparation and final-page presentation through the current controller.
+- Restored all later HEAD progress entries and appended the incoming P4.2 fix entries rather than discarding either history. Other incoming changes were preserved.
+
+Validation
+- pnpm verify PASS: zero lint warnings, workspace typechecks pass; 582 tests passed / 6 existing tests skipped; 119 passing files / 1 skipped; Vitest 4.90 s. Verification used localhost permission for the existing bridge tests.
+- No remaining conflict markers in application/package/native/integration/tool/docs sources, root package.json or pnpm-lock.yaml. git diff --check PASS.
+- No camera/microphone capture, live provider call or OS input injection. Live macOS/Windows acceptance and native Rust runtime checks remain manual.
+- No Git write command was run. The eight entries remain unmerged in the index until the human reviews and stages the resolved files; no commit or push was performed.
+
+Files edited for resolution (including conflicts resolved to existing HEAD content)
+- apps/desktop/src/main/excel-bridge/bridge.ts
+- apps/desktop/src/main/index.ts
+- apps/desktop/src/main/input/controller.ts
+- apps/desktop/src/main/native/index.ts
+- apps/desktop/src/renderer/speech/worklet.ts
+- docs/PROGRESS.md
+- package.json
+- packages/genai/src/formula/router.ts
+- apps/desktop/src/main/config.ts
+- apps/desktop/src/main/input/controller.test.ts
+- apps/desktop/src/main/openrouter.test.ts
+- packages/genai/src/providers/cloud.ts
+
+Manual checks
+1. Review the combined diff and stage the eight resolved entries when satisfied; the agent intentionally leaves the index untouched.
+2. On macOS and Windows, start local speech, capture a formula request, finish the mouth hold, review every proposal page and explicitly confirm. Verify one write, correction invalidation and protected undo. Check pause/cancel and gaze-only composition.
+3. Check OpenRouter and optional local-provider setup without sharing secrets. Confirm the native pointer and focused-field insertion still work in disposable targets.
+
+Suggested commit message: fix(MERGE): reconcile speech requests with guarded proposal flows
